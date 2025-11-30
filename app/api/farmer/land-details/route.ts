@@ -63,6 +63,8 @@ export async function POST(request: NextRequest) {
       userId,
       centroidLatitude,
       centroidLongitude,
+      extent,
+      surveyNumber,
       sideLengthsCount: sideLengths?.length,
       verticesCount: vertices?.length,
       hasImage: !!sketchImage
@@ -114,18 +116,38 @@ export async function POST(request: NextRequest) {
     let landSizeInAcres = 0;
     console.log('RTC extent received:', extent);
     if (extent) {
-      const parts = extent.split('.');
-      console.log('Extent parts:', parts);
-      if (parts.length >= 2) {
-        const acres = parseFloat(parts[0]) || 0;
-        const guntes = parseFloat(parts[1]) || 0;
-        console.log('Acres:', acres, 'Guntes:', guntes);
-        // Convert guntes to acres (1 acre = 40 guntes)
-        landSizeInAcres = acres + (guntes / 40);
-        console.log('Calculated land size in acres:', landSizeInAcres);
+      // Try different formats
+      let acres = 0;
+      let guntes = 0;
+      
+      // Format 1: 2.20.00.00 (acres.guntas.other.other)
+      if (extent.includes('.')) {
+        const parts = extent.split('.');
+        console.log('Extent parts:', parts);
+        
+        if (parts.length >= 2) {
+          acres = parseFloat(parts[0]) || 0;
+          guntes = parseFloat(parts[1]) || 0;
+          console.log('Parsed from format 1 - Acres:', acres, 'Guntes:', guntes);
+        }
       } else {
-        console.log('Extent format is invalid, expected at least 2 parts');
+        // Format 2: Try to extract from OCR text or other formats
+        // Look for patterns like "2 acres 20 guntes" or "2.20 acres"
+        const acreMatch = extent.match(/(\d+(?:\.\d+)?)\s*acre/i);
+        const gunteMatch = extent.match(/(\d+(?:\.\d+)?)\s*gunta/i);
+        
+        if (acreMatch) {
+          acres = parseFloat(acreMatch[1]) || 0;
+        }
+        if (gunteMatch) {
+          guntes = parseFloat(gunteMatch[1]) || 0;
+        }
+        console.log('Parsed from format 2 - Acres:', acres, 'Guntes:', guntes);
       }
+      
+      // Convert guntes to acres (1 acre = 40 guntes)
+      landSizeInAcres = acres + (guntes / 40);
+      console.log('Calculated land size in acres:', landSizeInAcres);
     } else {
       console.log('No extent provided for land size calculation');
     }

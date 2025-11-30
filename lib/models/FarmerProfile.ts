@@ -47,6 +47,10 @@ export interface IFarmerProfile extends Document {
   rtcOcrText?: string;
   aadharOcrText?: string;
 
+  // Land Integration fields
+  readyToIntegrate?: boolean;
+  readyToIntegrateDate?: Date;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -95,6 +99,10 @@ const FarmerProfileSchema = new Schema<IFarmerProfile>(
     aadharDocumentPath: { type: String },
     rtcOcrText: { type: String },
     aadharOcrText: { type: String },
+
+    // Land Integration fields
+    readyToIntegrate: { type: Boolean, default: false },
+    readyToIntegrateDate: { type: Date }
   },
   { timestamps: true }
 );

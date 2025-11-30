@@ -144,8 +144,18 @@ export default function LandDetailsPage() {
           if (kycResponse.ok) {
             const kycData = await kycResponse.json();
             console.log('KYC response data:', kycData);
-            rtcExtent = kycData.profile?.totalCultivableArea || '';
+            
+            // Try multiple possible fields for land extent
+            rtcExtent = kycData.profile?.totalCultivableArea || 
+                        kycData.profile?.landParcelIdentity || 
+                        kycData.profile?.rtcOcrText || '';
+            
             console.log('RTC extent found:', rtcExtent);
+            console.log('Available land fields:', {
+              totalCultivableArea: kycData.profile?.totalCultivableArea,
+              landParcelIdentity: kycData.profile?.landParcelIdentity,
+              rtcOcrText: kycData.profile?.rtcOcrText ? 'present' : 'missing'
+            });
           }
         } catch (error) {
           console.error('Error fetching RTC data:', error);

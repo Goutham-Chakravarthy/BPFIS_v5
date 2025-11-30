@@ -1,254 +1,71 @@
 "use client";
 
-import { useState } from 'react';
+import Link from 'next/link';
 
-export default function LandIntegrationPage() {
-  const [showLandDetailModal, setShowLandDetailModal] = useState(false);
-  const [showNeighborModal, setShowNeighborModal] = useState(false);
-  const [landDetails, setLandDetails] = useState({
-    surveyNumber: '',
-    extent: '',
-    location: '',
-    soilType: '',
-    cropType: ''
-  });
-  const [neighborRequest, setNeighborRequest] = useState({
-    neighborName: '',
-    neighborContact: '',
-    neighborLand: '',
-    integrationType: '',
-    duration: ''
-  });
-
-  const handleLandDetailSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Land details submitted:', landDetails);
-    setShowLandDetailModal(false);
-    setLandDetails({
-      surveyNumber: '',
-      extent: '',
-      location: '',
-      soilType: '',
-      cropType: ''
-    });
-  };
-
-  const handleNeighborRequestSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Neighbor integration request submitted:', neighborRequest);
-    setShowNeighborModal(false);
-    setNeighborRequest({
-      neighborName: '',
-      neighborContact: '',
-      neighborLand: '',
-      integrationType: '',
-      duration: ''
-    });
-  };
-
+export default function LandPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-[#1f3b2c]">Land Integration</h1>
+        <h1 className="text-2xl font-semibold text-[#1f3b2c]">Land Management</h1>
         <p className="text-sm text-[#6b7280] mt-1">
-          Manage your land details and integration agreements with neighboring farmers.
+          Manage your land mapping and integration options.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-[#fffaf1] border border-[#e2d4b7] rounded-lg p-6">
-          <h2 className="text-base font-semibold text-[#1f3b2c] mb-2">Enter Land Details</h2>
-          <p className="text-xs text-[#6b7280] mb-4">
-            Add and manage your land information including survey number and location details.
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Land Mapping */}
+        <section className="bg-[#fffaf1] border border-[#e2d4b7] rounded-lg p-6">
+          <h2 className="text-sm font-semibold text-[#1f3b2c] mb-2">Land Mapping</h2>
+          <p className="text-sm text-[#6b7280] mb-4">
+            Upload your land sketch and map it to geographic coordinates.
           </p>
-          <a
+          
+          <Link
             href="/dashboard/farmer/land/details"
-            className="inline-flex items-center justify-center rounded-md bg-[#166534] px-4 py-2 text-xs font-medium text-white hover:bg-[#14532d]"
+            className="inline-flex items-center justify-center rounded-md bg-[#166534] px-4 py-2 text-sm font-medium text-white hover:bg-[#14532d]"
           >
-            Add Land Details
-          </a>
-        </div>
-        
-        <div className="bg-[#fffaf1] border border-[#e2d4b7] rounded-lg p-6">
-          <h2 className="text-base font-semibold text-[#1f3b2c] mb-2">Apply for Integration</h2>
-          <p className="text-xs text-[#6b7280] mb-4">
-            Request land integration with neighboring farmers for collaborative farming.
-          </p>
-          <button
-            onClick={() => setShowNeighborModal(true)}
-            className="inline-flex items-center justify-center rounded-md bg-[#166534] px-4 py-2 text-xs font-medium text-white hover:bg-[#14532d]"
-          >
-            Send Request
-          </button>
-        </div>
+            Map Your Land
+          </Link>
+        </section>
 
-        <div className="bg-[#fffaf1] border border-[#e2d4b7] rounded-lg p-6">
-          <h2 className="text-base font-semibold text-[#1f3b2c] mb-2">View Agreements</h2>
-          <p className="text-xs text-[#6b7280] mb-4">
-            Check status of your existing land integration agreements with other farmers.
+        {/* Land Integration */}
+        <section className="bg-[#fffaf1] border border-[#e2d4b7] rounded-lg p-6">
+          <h2 className="text-sm font-semibold text-[#1f3b2c] mb-2">Land Integration</h2>
+          <p className="text-sm text-[#6b7280] mb-4">
+            Find neighboring farmers and integrate your lands for better productivity.
           </p>
-          <button className="inline-flex items-center justify-center rounded-md bg-[#166534] px-4 py-2 text-xs font-medium text-white hover:bg-[#14532d]">
-            View All
-          </button>
-        </div>
+          
+          <Link
+            href="/dashboard/farmer/land/integrate"
+            className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Integrate Land
+          </Link>
+        </section>
       </div>
 
-      {/* Land Details Modal */}
-      {showLandDetailModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-[#1f3b2c]">Enter Land Details</h3>
-              <button
-                onClick={() => setShowLandDetailModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ×
-              </button>
-            </div>
-
-            <form onSubmit={handleLandDetailSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[#1f3b2c] mb-1">
-                  Survey Number
-                </label>
-                <input
-                  type="text"
-                  value={landDetails.surveyNumber}
-                  onChange={(e) => setLandDetails({...landDetails, surveyNumber: e.target.value})}
-                  className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#166534]"
-                  placeholder="e.g., 24/1A"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#1f3b2c] mb-1">
-                  Land Extent (acres)
-                </label>
-                <input
-                  type="text"
-                  value={landDetails.extent}
-                  onChange={(e) => setLandDetails({...landDetails, extent: e.target.value})}
-                  className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#166534]"
-                  placeholder="e.g., 2.5"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#1f3b2c] mb-1">
-                  Location
-                </label>
-                <input
-                  type="text"
-                  value={landDetails.location}
-                  onChange={(e) => setLandDetails({...landDetails, location: e.target.value})}
-                  className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#166534]"
-                  placeholder="Village, Hobli, Taluk"
-                  required
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowLandDetailModal(false)}
-                  className="flex-1 px-4 py-2 border border-[#e2d4b7] text-[#1f3b2c] rounded-md hover:bg-[#f7f0de]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-[#166534] text-white rounded-md hover:bg-[#14532d]"
-                >
-                  Save Details
-                </button>
-              </div>
-            </form>
+      {/* Information Section */}
+      <section className="bg-[#fffaf1] border border-[#e2d4b7] rounded-lg p-6">
+        <h2 className="text-sm font-semibold text-[#1f3b2c] mb-2">How Land Integration Works</h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+          <div className="text-[#1f3b2c]">
+            <div className="font-semibold mb-1">1. Map Your Land</div>
+            <p className="text-xs text-[#6b7280]">Upload sketch and convert to coordinates</p>
+          </div>
+          <div className="text-[#1f3b2c]">
+            <div className="font-semibold mb-1">2. Get Ready</div>
+            <p className="text-xs text-[#6b7280]">Mark yourself as ready to integrate</p>
+          </div>
+          <div className="text-[#1f3b2c]">
+            <div className="font-semibold mb-1">3. Find Neighbours</div>
+            <p className="text-xs text-[#6b7280]">System finds nearby verified farmers</p>
+          </div>
+          <div className="text-[#1f3b2c]">
+            <div className="font-semibold mb-1">4. Integrate</div>
+            <p className="text-xs text-[#6b7280]">Send requests and sign agreements</p>
           </div>
         </div>
-      )}
-
-      {/* Neighbor Integration Modal */}
-      {showNeighborModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-[#1f3b2c]">Apply for Land Integration</h3>
-              <button
-                onClick={() => setShowNeighborModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ×
-              </button>
-            </div>
-
-            <form onSubmit={handleNeighborRequestSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[#1f3b2c] mb-1">
-                  Neighbor Farmer Name
-                </label>
-                <input
-                  type="text"
-                  value={neighborRequest.neighborName}
-                  onChange={(e) => setNeighborRequest({...neighborRequest, neighborName: e.target.value})}
-                  className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#166534]"
-                  placeholder="Enter neighbor's name"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#1f3b2c] mb-1">
-                  Contact Number
-                </label>
-                <input
-                  type="tel"
-                  value={neighborRequest.neighborContact}
-                  onChange={(e) => setNeighborRequest({...neighborRequest, neighborContact: e.target.value})}
-                  className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#166534]"
-                  placeholder="Mobile number"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#1f3b2c] mb-1">
-                  Integration Type
-                </label>
-                <select
-                  value={neighborRequest.integrationType}
-                  onChange={(e) => setNeighborRequest({...neighborRequest, integrationType: e.target.value})}
-                  className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#166534]"
-                  required
-                >
-                  <option value="">Select integration type</option>
-                  <option value="joint_farming">Joint Farming</option>
-                  <option value="resource_sharing">Resource Sharing</option>
-                  <option value="crop_rotation">Crop Rotation</option>
-                </select>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowNeighborModal(false)}
-                  className="flex-1 px-4 py-2 border border-[#e2d4b7] text-[#1f3b2c] rounded-md hover:bg-[#f7f0de]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-[#166534] text-white rounded-md hover:bg-[#14532d]"
-                >
-                  Send Request
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      </section>
     </div>
   );
 }
