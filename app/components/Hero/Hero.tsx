@@ -1,27 +1,26 @@
 import Link from 'next/link';
-import Image from 'next/image';
 
 export default function Hero() {
   return (
-    <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 bg-[#f7f0de] overflow-hidden">
+    <section className="relative pt-80 pb-64 md:pt-96 md:pb-96 overflow-hidden">
       {/* Background image */}
       <div className="absolute inset-0 -z-10">
-        <Image
-          src="/pexels-tomfisk-1483880.jpg"
-          alt="Lush green farmland seen from above."
-          fill
-          priority
-          className="object-cover"
+        <div 
+          className="w-full h-full bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url('/pexels-tomfisk-1483880.jpg')`,
+            filter: 'blur(2px)'
+          }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#f7f0de]/45 via-[#f7f0de]/25 to-[#f7f0de]/10" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-transparent" />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[#1f3b2c] mb-6 leading-tight">
-            Connecting Fields, <span className="text-[#166534]">Cultivating Futures</span>
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+            Connecting Fields, <span className="text-[#86efac]">Cultivating Futures</span>
           </h1>
-          <p className="mt-6 text-xl text-[#4b5563] max-w-3xl mx-auto">
+          <p className="mt-6 text-xl text-white/90 max-w-3xl mx-auto">
             AgriLink bridges the gap between traditional farming and modern technology, 
             empowering farmers with blockchain land integration, AI-powered insights, 
             and a comprehensive marketplace for all agricultural needs.

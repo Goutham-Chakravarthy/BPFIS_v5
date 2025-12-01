@@ -233,7 +233,7 @@ export default function SettingsPage() {
                 <select
                   value={settings.defaultShippingMethod}
                   onChange={(e) => handleSelect('defaultShippingMethod', e.target.value)}
-                  className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] focus:border-transparent text-gray-700"
                 >
                   <option value="standard">Standard Shipping</option>
                   <option value="express">Express Shipping</option>
@@ -248,7 +248,7 @@ export default function SettingsPage() {
                 <select
                   value={settings.returnPolicy}
                   onChange={(e) => handleSelect('returnPolicy', e.target.value)}
-                  className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] focus:border-transparent text-gray-700"
                 >
                   <option value="7-days">7 Days</option>
                   <option value="15-days">15 Days</option>
@@ -264,7 +264,7 @@ export default function SettingsPage() {
                 <select
                   value={settings.currency}
                   onChange={(e) => handleSelect('currency', e.target.value)}
-                  className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] focus:border-transparent text-gray-700"
                 >
                   <option value="INR">Indian Rupee (₹)</option>
                   <option value="USD">US Dollar ($)</option>
@@ -279,7 +279,7 @@ export default function SettingsPage() {
                 <select
                   value={settings.timezone}
                   onChange={(e) => handleSelect('timezone', e.target.value)}
-                  className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] focus:border-transparent text-gray-700"
                 >
                   <option value="Asia/Kolkata">India Standard Time</option>
                   <option value="UTC">UTC</option>
@@ -361,7 +361,7 @@ export default function SettingsPage() {
               <select
                 value={settings.sessionTimeout}
                 onChange={(e) => handleSelect('sessionTimeout', e.target.value)}
-                className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] focus:border-transparent"
+                className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] focus:border-transparent text-gray-700"
               >
                 <option value="1h">1 Hour</option>
                 <option value="8h">8 Hours</option>

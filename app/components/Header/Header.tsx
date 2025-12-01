@@ -38,9 +38,6 @@ export default function Header() {
 
           {!isDashboard && (
             <nav className="hidden md:ml-6 md:flex md:items-center md:space-x-8">
-              <Link href="/marketplace" className="text-[#374151] hover:text-[#166534] px-3 py-2 text-sm font-medium">
-                Marketplace
-              </Link>
               <Link href="/#features" className="text-[#374151] hover:text-[#166534] px-3 py-2 text-sm font-medium">
                 Features
               </Link>

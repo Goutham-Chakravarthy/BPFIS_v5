@@ -11,6 +11,16 @@ import Document from '../../../../lib/models/Document';
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
+// Function to normalize names for comparison (remove punctuation and spaces)
+function normalizeNameForComparison(name: string | null | undefined): string | null {
+  if (!name) return null;
+  
+  return name
+    .replace(/[.,;:!?'"(){}[\]\\]/g, '') // Remove all punctuation marks
+    .replace(/\s+/g, '') // Remove all spaces
+    .trim();
+}
+
 export async function POST(request: Request) {
   try {
     const auth = await getUserFromRequest(request);
@@ -129,23 +139,23 @@ export async function POST(request: Request) {
     let shouldStoreRTCData = false;
     
     if (extractedData.farmer.kannadaName && extractedData.farmer.aadhaarKannadaName) {
-      // Normalize names for comparison (remove extra spaces and convert to consistent format)
-      const rtcName = extractedData.farmer.kannadaName.trim().replace(/\s+/g, ' ');
-      const aadhaarName = extractedData.farmer.aadhaarKannadaName.trim().replace(/\s+/g, ' ');
+      // Normalize names for comparison (remove punctuation and spaces)
+      const rtcName = normalizeNameForComparison(extractedData.farmer.kannadaName);
+      const aadhaarName = normalizeNameForComparison(extractedData.farmer.aadhaarKannadaName);
       
       console.log(`Name verification: RTC="${rtcName}" vs Aadhaar="${aadhaarName}"`);
       
-      // Check if names match exactly (no partial matching allowed)
-      if (rtcName === aadhaarName) {
+      // Check if names match exactly after normalization
+      if (rtcName && aadhaarName && rtcName === aadhaarName) {
         nameVerificationStatus = 'verified';
         shouldStoreRTCData = true;
         extractedData.land.ownershipVerified = true; // Only verified if names match
-        console.log('✅ Names match exactly - storing RTC data with verified ownership');
+        console.log('✅ Names match exactly after normalization - storing RTC data with verified ownership');
       } else {
         nameVerificationStatus = 'not_verified';
         shouldStoreRTCData = false;
         extractedData.land.ownershipVerified = false; // Not verified if names don't match
-        console.log('❌ Names do not match - only storing Aadhaar data, ownership not verified');
+        console.log('❌ Names do not match after normalization - only storing Aadhaar data, ownership not verified');
       }
     } else if (!extractedData.farmer.kannadaName && !extractedData.farmer.aadhaarKannadaName) {
       nameVerificationStatus = 'pending';

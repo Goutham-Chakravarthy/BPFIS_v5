@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import Header from '../../components/Header/Header';
-import { LayoutDashboard, FileText, Layers, ScrollText, ShoppingBag, CloudSun, Store } from 'lucide-react';
+import { LayoutDashboard, FileText, Layers, ScrollText, ShoppingBag, CloudSun, Store, TrendingUp } from 'lucide-react';
 
 type NavItem = {
   label: string;
@@ -16,9 +16,10 @@ const navItems: NavItem[] = [
   { label: 'KYC Documents', href: '/dashboard/farmer/documents', icon: FileText },
   { label: 'Land Integration', href: '/dashboard/farmer/land', icon: Layers },
   { label: 'Government Schemes', href: '/dashboard/farmer/schemes', icon: ScrollText },
-  { label: 'My Orders', href: '/dashboard/farmer/orders', icon: ShoppingBag },
+  { label: 'Marketplace', href: '/dashboard/farmer/marketplace', icon: Store },
+  // { label: 'My Orders', href: '/dashboard/farmer/orders', icon: ShoppingBag },
+  { label: 'Crop Price Prediction', href: '/dashboard/farmer/crop-price-prediction', icon: TrendingUp },
   { label: 'Weather', href: '/dashboard/farmer/weather', icon: CloudSun },
-  { label: 'Marketplace', href: '/marketplace', icon: Store },
 ];
 
 export default function FarmerDashboardLayout({ children }: { children: React.ReactNode }) {
@@ -31,6 +32,14 @@ export default function FarmerDashboardLayout({ children }: { children: React.Re
     const url = new URL(baseHref, 'http://dummy');
     url.searchParams.set('userId', userId);
     return url.pathname + '?' + url.searchParams.toString();
+  };
+
+  // Special handling for marketplace to always include userId
+  const getMarketplaceHref = () => {
+    if (userId) {
+      return `/dashboard/farmer/marketplace?userId=${userId}`;
+    }
+    return '/dashboard/farmer/marketplace';
   };
 
   return (
@@ -46,12 +55,12 @@ export default function FarmerDashboardLayout({ children }: { children: React.Re
                 const isOverview = item.href === '/dashboard/farmer';
                 const isActive = isOverview
                   ? pathname === item.href
-                  : item.href !== '/marketplace' && pathname?.startsWith(item.href);
+                  : item.href !== '/dashboard/farmer/marketplace' && pathname?.startsWith(item.href);
                 const Icon = item.icon;
                 return (
                   <li key={item.href}>
                     <Link
-                      href={buildHref(item.href)}
+                      href={item.href === '/dashboard/farmer/marketplace' ? getMarketplaceHref() : buildHref(item.href)}
                       className={`flex items-center gap-2 rounded-md px-3 py-2 transition-colors ${
                         isActive
                           ? 'bg-[#166534] text-white'

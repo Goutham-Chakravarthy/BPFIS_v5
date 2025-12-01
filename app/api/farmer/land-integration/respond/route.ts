@@ -15,11 +15,16 @@ export async function POST(request: Request) {
     const { requestId, action } = await request.json();
     const userId = auth.sub;
 
+    console.log('Integration request response:', { requestId, action, userId });
+
     await connectDB();
 
     // Find the integration request
     const integrationRequest = await LandIntegration.findById(requestId);
+    console.log('Found integration request:', integrationRequest);
+    
     if (!integrationRequest) {
+      console.log('Integration request not found for ID:', requestId);
       return NextResponse.json({ error: 'Integration request not found' }, { status: 404 });
     }
 

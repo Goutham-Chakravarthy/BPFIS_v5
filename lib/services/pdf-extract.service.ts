@@ -247,8 +247,12 @@ function parseRTC(lines: string[]) {
     const firstOwner = extractedName.split(/[-,]/)[0].trim();
     console.log('First owner name:', firstOwner);
     
-    // Store the cleaned name as a single-element array
-    owners = firstOwner.length > 0 ? [firstOwner] : [];
+    // Apply normalization (remove punctuation and spaces) to match Aadhar format
+    const normalizedOwnerName = normalizeName(firstOwner);
+    console.log('Normalized RTC owner name:', normalizedOwnerName);
+    
+    // Store the normalized name as a single-element array
+    owners = normalizedOwnerName && normalizedOwnerName.length > 0 ? [normalizedOwnerName] : [];
     
     ownerExtent = t[extIdx];
     account_no = t[extIdx + 1] || null;
@@ -288,6 +292,16 @@ function parseRTC(lines: string[]) {
     },
     cultivation
   };
+}
+
+// Function to normalize names by removing punctuation and spaces
+function normalizeName(name: string | null): string | null {
+  if (!name) return null;
+  
+  return name
+    .replace(/[.,;:!?'"(){}[\]\\]/g, '') // Remove all punctuation marks
+    .replace(/\s+/g, '') // Remove all spaces
+    .trim();
 }
 
 // Main extraction function
@@ -506,8 +520,8 @@ function parseAadhaar(text: string) {
 
   return {
     aadhaar_number: aadhaarNumber,
-    name_english: nameEnglish,
-    name_kannada: nameKannada,
+    name_english: normalizeName(nameEnglish),
+    name_kannada: normalizeName(nameKannada),
     dob,
     gender,
     mobile: mobileNumber,

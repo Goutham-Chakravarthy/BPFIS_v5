@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { getSellerId } from '@/lib/supplier-auth';
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -124,6 +125,9 @@ export default function NewProductPage() {
     setError('');
     setSuccess('');
 
+    // Get seller info from localStorage
+    const sellerId = getSellerId();
+
     // Validate at least one image is uploaded
     if (formData.images.length === 0) {
       setError('Please upload at least one product image');
@@ -165,7 +169,7 @@ export default function NewProductPage() {
       const response = await fetch('/api/supplier/products', {
         method: 'POST',
         headers: {
-          'x-seller-id': 'temp-seller-id' // TODO: Get from auth
+          'x-seller-id': sellerId
         },
         body: formPayload // Send FormData instead of JSON
       });

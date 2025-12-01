@@ -24,9 +24,15 @@ interface NeighbouringLand {
 }
 
 interface IntegrationRequest {
+  _id: string;
   requestingUser: string;
   targetUser: string;
   status: 'pending' | 'accepted' | 'rejected' | 'completed';
+  requestDate: Date;
+  responseDate?: Date;
+  isRequestingUser: boolean;
+  otherUserName: string;
+  otherUserContact?: string;
   landDetails: {
     requestingUser: {
       sizeInAcres: number;
@@ -38,6 +44,9 @@ interface IntegrationRequest {
     };
     totalIntegratedSize: number;
   };
+  financialAgreement: any;
+  integrationPeriod: any;
+  agreementDocument?: string;
 }
 
 export default function LandIntegrationPage() {
@@ -230,20 +239,25 @@ export default function LandIntegrationPage() {
   const respondToRequest = async (requestId: string, action: 'accept' | 'reject') => {
     try {
       setLoading(true);
+      console.log(`Responding to request ${requestId} with action: ${action}`);
+      
       const response = await fetch(`/api/farmer/land-integration/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestId, action })
       });
 
+      const data = await response.json();
+      console.log('Response data:', data);
+
       if (response.ok) {
         setSuccessMessage(`Integration request ${action}ed successfully`);
         loadIntegrationRequests();
       } else {
-        const data = await response.json();
         setError(data.error || `Failed to ${action} request`);
       }
     } catch (err) {
+      console.error(`Failed to ${action} request:`, err);
       setError(`Failed to ${action} request`);
     } finally {
       setLoading(false);
@@ -341,11 +355,11 @@ export default function LandIntegrationPage() {
           <h2 className="text-lg font-semibold text-[#1f3b2c] mb-4">Integration Requests</h2>
           <div className="space-y-4">
             {integrationRequests.map((request) => (
-              <div key={request.requestingUser} className="border border-[#e2d4b7] rounded-lg p-4">
+              <div key={request._id} className="border border-[#e2d4b7] rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-medium text-[#1f3b2c]">
-                      Integration Request from Farmer {request.requestingUser.slice(-6)}
+                      Integration Request from {request.otherUserName}
                     </h3>
                     <p className="text-xs text-[#6b7280] mt-1">
                       Total Integrated Size: {request.landDetails.totalIntegratedSize.toFixed(2)} acres
@@ -357,13 +371,13 @@ export default function LandIntegrationPage() {
                   </div>
                   <div className="flex space-x-2">
                     <button
-                      onClick={() => respondToRequest(request.requestingUser, 'accept')}
+                      onClick={() => respondToRequest(request._id, 'accept')}
                       className="inline-flex items-center rounded-md bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-700"
                     >
                       Accept
                     </button>
                     <button
-                      onClick={() => respondToRequest(request.requestingUser, 'reject')}
+                      onClick={() => respondToRequest(request._id, 'reject')}
                       className="inline-flex items-center rounded-md bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700"
                     >
                       Reject

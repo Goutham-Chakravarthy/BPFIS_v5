@@ -120,18 +120,15 @@ const ProductSchema = new Schema<IProduct>({
   price: {
     type: Number,
     required: true,
-    min: 0,
-    get: (value: number) => parseFloat(value.toFixed(2))
+    min: 0
   },
   comparePrice: {
     type: Number,
-    min: 0,
-    get: (value: number) => parseFloat(value.toFixed(2))
+    min: 0
   },
   costPrice: {
     type: Number,
-    min: 0,
-    get: (value: number) => parseFloat(value.toFixed(2))
+    min: 0
   },
   stockQuantity: {
     type: Number,

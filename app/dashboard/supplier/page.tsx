@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { getAuthHeaders } from '@/lib/supplier-auth';
 
 interface DashboardStats {
   totalRevenue: number;
@@ -57,9 +58,7 @@ export default function SupplierDashboard() {
       if (!localProfile) {
         // No local profile found, check API
         const profileResponse = await fetch('/api/seller', {
-          headers: {
-            'x-seller-id': 'temp-seller-id' // TODO: Get from auth
-          }
+          headers: getAuthHeaders()
         });
 
         if (profileResponse.ok) {
@@ -76,24 +75,16 @@ export default function SupplierDashboard() {
       // Load dashboard data
       const [statsRes, ordersRes, lowStockRes, topProductsRes] = await Promise.all([
         fetch('/api/supplier/dashboard/stats', {
-          headers: {
-            'x-seller-id': 'temp-seller-id' // TODO: Get from auth
-          }
+          headers: getAuthHeaders()
         }),
         fetch('/api/supplier/dashboard/recent-orders', {
-          headers: {
-            'x-seller-id': 'temp-seller-id' // TODO: Get from auth
-          }
+          headers: getAuthHeaders()
         }),
         fetch('/api/supplier/dashboard/low-stock', {
-          headers: {
-            'x-seller-id': 'temp-seller-id' // TODO: Get from auth
-          }
+          headers: getAuthHeaders()
         }),
         fetch('/api/supplier/dashboard/top-products', {
-          headers: {
-            'x-seller-id': 'temp-seller-id' // TODO: Get from auth
-          }
+          headers: getAuthHeaders()
         })
       ]);
 

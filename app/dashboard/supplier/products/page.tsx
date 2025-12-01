@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { getSellerId, getAuthHeaders } from '@/lib/supplier-auth';
 
 interface Product {
   _id: string;
@@ -75,9 +76,7 @@ export default function ProductsPage() {
       });
 
       const response = await fetch(`/api/supplier/products?${params}`, {
-        headers: {
-          'x-seller-id': 'temp-seller-id' // TODO: Get from auth
-        }
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) {
@@ -103,9 +102,7 @@ export default function ProductsPage() {
     try {
       const response = await fetch(`/api/supplier/products/${productId}`, {
         method: 'DELETE',
-        headers: {
-          'x-seller-id': 'temp-seller-id'
-        }
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) {
@@ -123,9 +120,7 @@ export default function ProductsPage() {
     try {
       const response = await fetch(`/api/supplier/products/${productId}/toggle-active`, {
         method: 'POST',
-        headers: {
-          'x-seller-id': 'temp-seller-id'
-        }
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) {
