@@ -1,11 +1,42 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { getAuthHeaders } from '@/lib/supplier-auth';
+
+interface SellerProfile {
+  _id: string;
+  companyName: string;
+  email: string;
+  phone: string;
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    pincode: string;
+    country: string;
+  };
+  gstNumber?: string;
+  businessDetails?: {
+    businessType: string;
+    yearsInOperation: string;
+    productCategories: string;
+  };
+  avatarUrl?: string;
+  verificationStatus: 'pending' | 'verified' | 'rejected';
+  documents: {
+    businessCertificate?: string;
+    tradeLicense?: string;
+    ownerIdProof?: string;
+    gstCertificate?: string;
+  };
+  isActive: boolean;
+  createdAt: string;
+}
 
 export default function VerificationPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<SellerProfile | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
@@ -50,9 +81,7 @@ export default function VerificationPage() {
   const loadProfile = async () => {
     try {
       const response = await fetch('/api/seller', {
-        headers: {
-          'x-seller-id': 'temp-seller-id' // TODO: Get from auth
-        }
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) {
@@ -93,7 +122,7 @@ export default function VerificationPage() {
       const response = await fetch('/api/seller/documents', {
         method: 'POST',
         headers: {
-          'x-seller-id': 'temp-seller-id'
+          ...getAuthHeaders()
         },
         body: formData
       });
@@ -114,7 +143,7 @@ export default function VerificationPage() {
     }
   };
 
-  const getDocumentStatus = (docType: string) => {
+  const getDocumentStatus = (docType: keyof SellerProfile['documents']) => {
     if (!profile?.documents) return 'not_uploaded';
     return profile.documents[docType] ? 'uploaded' : 'not_uploaded';
   };
@@ -194,7 +223,7 @@ export default function VerificationPage() {
         
         <div className="space-y-6">
           {documentTypes.map((docType) => {
-            const status = getDocumentStatus(docType.key);
+            const status = getDocumentStatus(docType.key as keyof SellerProfile['documents']);
             const hasFile = documents[docType.key as keyof typeof documents] !== null;
             
             return (

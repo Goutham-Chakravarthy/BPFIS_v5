@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
+// TODO: Implement useSearchParams for user-specific data
+// import { useSearchParams } from 'next/navigation';
 
 interface CropData {
   value: string;
@@ -27,8 +27,9 @@ interface HistoricalData {
 }
 
 export default function CropPricePrediction() {
-  const searchParams = useSearchParams();
-  const userId = searchParams.get('userId');
+  // TODO: Implement searchParams and userId usage for user-specific data
+  // const searchParams = useSearchParams();
+  // const userId = searchParams?.get('userId');
   
   const [crops, setCrops] = useState<CropData[]>([]);
   const [selectedCrop, setSelectedCrop] = useState<string>('');
@@ -39,9 +40,10 @@ export default function CropPricePrediction() {
   const [predictionMonths, setPredictionMonths] = useState(3);
 
   // Helper function to build URLs with userId
-  const buildUrl = (path: string) => {
-    return userId ? `${path}?userId=${userId}` : path;
-  };
+  // Helper function to build URLs with userId (currently unused but kept for future use)
+  // const buildUrl = (path: string) => {
+  //   return userId ? `${path}?userId=${userId}` : path;
+  // };
 
   useEffect(() => {
     loadCrops();
@@ -54,11 +56,9 @@ export default function CropPricePrediction() {
       if (response.ok) {
         const data = await response.json();
         setCrops(data.crops || []);
-      } else {
-        setError('Failed to load crops');
       }
-    } catch (err) {
-      setError('Error loading crops');
+    } catch {
+      console.error('Failed to load crops data');
     } finally {
       setLoading(false);
     }
@@ -92,8 +92,8 @@ export default function CropPricePrediction() {
       } else {
         setError('Failed to load historical data');
       }
-    } catch (err) {
-      setError('Error loading historical data');
+    } catch {
+      console.error('Failed to load historical data');
     } finally {
       setLoading(false);
     }
@@ -124,8 +124,8 @@ export default function CropPricePrediction() {
       } else {
         setError('Failed to generate prediction');
       }
-    } catch (err) {
-      setError('Error generating prediction');
+    } catch {
+      console.error('Failed to generate prediction');
     } finally {
       setLoading(false);
     }
@@ -155,12 +155,13 @@ export default function CropPricePrediction() {
     const allPrices = [...historicalData.prices];
     let predictedPrices: number[] = [];
     let predictedDates: string[] = [];
-    let confidenceIntervals: any[] = [];
+    // TODO: Implement confidence intervals visualization
+    // const confidenceIntervals: Array<{lower: number; upper: number}> = [];
 
     if (predictionData) {
       predictedDates = predictionData.dates;
       predictedPrices = predictionData.predictions;
-      confidenceIntervals = predictionData.confidenceIntervals;
+      // confidenceIntervals = predictionData.confidenceIntervals;
       
       // Add prediction data to chart
       allDates.push(...predictedDates);
@@ -290,7 +291,7 @@ export default function CropPricePrediction() {
             )}
 
             {/* X-axis labels (show sample dates) */}
-            {allDates.filter((_, index) => index % Math.ceil(allDates.length / 8) === 0).map((date, index) => {
+            {allDates.filter((_, _index) => _index % Math.ceil(allDates.length / 8) === 0).map((date) => {
               const actualIndex = allDates.indexOf(date);
               const x = 50 + (actualIndex / (allDates.length - 1)) * 700;
               return (
@@ -351,6 +352,9 @@ export default function CropPricePrediction() {
               onChange={(e) => handleCropChange(e.target.value)}
               className="w-full px-3 py-2 border border-[#e2d4b7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] text-gray-700"
               disabled={loading}
+              aria-label="Select Crop"
+              id="crop-select"
+              title="Select a crop for price prediction"
             >
               <option value="">Choose a crop...</option>
               {crops.map((crop) => (
@@ -371,6 +375,9 @@ export default function CropPricePrediction() {
               onChange={(e) => setPredictionMonths(Number(e.target.value))}
               className="w-full px-3 py-2 border border-[#e2d4b7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] text-gray-700"
               disabled={loading}
+              aria-label="Prediction Period"
+              id="prediction-period-select"
+              title="Select prediction period in months"
             >
               <option value={3}>3 Months</option>
               <option value={6}>6 Months</option>

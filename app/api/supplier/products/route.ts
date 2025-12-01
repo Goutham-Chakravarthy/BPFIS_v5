@@ -19,25 +19,20 @@ export async function GET(request: NextRequest) {
     }
 
     // For development, handle temp seller ID without ObjectId validation
+    let finalSellerId = sellerId;
     if (sellerId === 'temp-seller-id') {
-      return NextResponse.json({
-        products: [],
-        pagination: {
-          page: 1,
-          limit: 10,
-          total: 0,
-          pages: 0
-        }
-      });
+      // Convert temp seller ID to test seller ID for development
+      finalSellerId = '65a1b2c3d4e5f6789012345';
+      console.log('⚠️ Converting temp-seller-id to test seller ID for development (GET)');
     }
 
     // For testing, allow mock seller IDs
-    if (sellerId === '65a1b2c3d4e5f6789012345') {
+    if (finalSellerId === '65a1b2c3d4e5f6789012345') {
       console.log('⚠️ Using test seller ID for development (GET)');
       // Skip seller validation for testing
     } else {
       // Validate seller exists
-      const seller = await Seller.findById(sellerId);
+      const seller = await Seller.findById(finalSellerId);
       if (!seller) {
         return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
       }
@@ -52,7 +47,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category') || '';
 
     // Build query
-    const query: any = { sellerId };
+    const query: Record<string, unknown> = { sellerId: finalSellerId };
     
     if (status) {
       query.status = status;
@@ -76,16 +71,19 @@ export async function GET(request: NextRequest) {
     let products, totalCount;
     
     // For test seller ID, use direct MongoDB query
-    if (sellerId === '65a1b2c3d4e5f6789012345') {
+    if (finalSellerId === '65a1b2c3d4e5f6789012345') {
       const db = mongoose.connection.db;
+      if (!db) {
+        return NextResponse.json({ error: 'Database connection not available' }, { status: 500 });
+      }
       const productsCursor = db.collection('products')
-        .find({ sellerId })
+        .find({ sellerId: finalSellerId })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
       
       products = await productsCursor.toArray();
-      totalCount = await db.collection('products').countDocuments({ sellerId });
+      totalCount = await db.collection('products').countDocuments({ sellerId: finalSellerId });
     } else {
       // Use Mongoose model for real sellers
       [products, totalCount] = await Promise.all([
@@ -126,20 +124,20 @@ export async function POST(request: NextRequest) {
     }
 
     // For development, handle test seller IDs without ObjectId validation
+    let finalSellerId = sellerId;
     if (sellerId === 'temp-seller-id') {
-      return NextResponse.json(
-        { error: 'Cannot create products with temporary seller ID' },
-        { status: 400 }
-      );
+      // Convert temp seller ID to test seller ID for development
+      finalSellerId = '65a1b2c3d4e5f6789012345';
+      console.log('⚠️ Converting temp-seller-id to test seller ID for development');
     }
 
     // For testing, allow mock seller IDs
-    if (sellerId === '65a1b2c3d4e5f6789012345') {
+    if (finalSellerId === '65a1b2c3d4e5f6789012345') {
       console.log('⚠️ Using test seller ID for development');
       // Skip seller validation for testing
     } else {
       // Validate seller exists
-      const seller = await Seller.findById(sellerId);
+      const seller = await Seller.findById(finalSellerId);
       if (!seller) {
         return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
       }
@@ -226,7 +224,7 @@ export async function POST(request: NextRequest) {
 
     // Create new product using a simple approach (bypassing model getters)
     const productData = {
-      sellerId,
+      sellerId: finalSellerId,
       name,
       sku,
       slug,
@@ -262,6 +260,9 @@ export async function POST(request: NextRequest) {
 
     // Use direct MongoDB insertion to bypass Mongoose model issues
     const db = mongoose.connection.db;
+    if (!db) {
+      return NextResponse.json({ error: 'Database connection not available' }, { status: 500 });
+    }
     const result = await db.collection('products').insertOne(productData);
     
     const createdProduct = {
@@ -276,17 +277,21 @@ export async function POST(request: NextRequest) {
       product: createdProduct
     }, { status: 201 });
 
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    const errorName = error instanceof Error ? error.name : 'Unknown';
+    
     console.error('❌ Error creating product:', error);
     console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
+      message: errorMessage,
+      stack: errorStack,
+      name: errorName
     });
     
     // Handle duplicate key errors
     if (error instanceof Error && 'code' in error && error.code === 11000) {
-      const field = Object.keys((error as any).keyValue)[0];
+      const field = Object.keys((error as { keyValue?: Record<string, unknown> }).keyValue || {})[0];
       return NextResponse.json(
         { error: `A product with this ${field} already exists` },
         { status: 409 }
@@ -295,7 +300,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       error: 'Internal server error',
-      details: error.message 
+      details: errorMessage 
     }, { status: 500 });
   }
 }

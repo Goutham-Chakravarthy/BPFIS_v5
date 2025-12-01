@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { getAuthHeaders } from '@/lib/supplier-auth';
 
 interface SellerProfile {
   _id: string;
@@ -68,9 +69,7 @@ export default function ProfilePage() {
     try {
       // Always try API first, only use localStorage as fallback
       const response = await fetch('/api/seller', {
-        headers: {
-          'x-seller-id': 'temp-seller-id' // TODO: Get from auth
-        }
+        headers: getAuthHeaders()
       });
 
       if (response.ok) {
@@ -131,9 +130,7 @@ export default function ProfilePage() {
       }
 
       const saveResponse = await fetch('/api/seller', {
-        headers: {
-          'x-seller-id': 'temp-seller-id' // TODO: Get from auth
-        }
+        headers: getAuthHeaders()
       });
 
       if (!saveResponse.ok) {
@@ -193,7 +190,7 @@ export default function ProfilePage() {
       setFormData(prev => ({
         ...prev,
         [parent]: {
-          ...prev[parent as keyof typeof prev] as any,
+          ...prev[parent as keyof typeof prev] as Record<string, unknown>,
           [child]: value
         }
       }));
@@ -215,7 +212,7 @@ export default function ProfilePage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'x-seller-id': 'temp-seller-id'
+          ...getAuthHeaders()
         },
         body: JSON.stringify(formData)
       });

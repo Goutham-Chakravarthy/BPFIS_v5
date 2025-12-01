@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
   try {
-    const filePath = path.resolve(process.cwd(), "GOVT SCHEMES LIST1.xlsx");
+    const filePath = path.resolve(process.cwd(), "Government_Scheme_Applicability_Dataset.xlsx");
     console.log('Attempting to read file:', filePath);
     
     if (!fs.existsSync(filePath)) {

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { getAuthHeaders } from '@/lib/supplier-auth';
 
 interface Product {
   _id: string;
@@ -14,7 +15,7 @@ interface Product {
   stockQuantity: number;
   reorderThreshold: number;
   tags: string[];
-  specifications?: any;
+  specifications?: Record<string, unknown>;
   dimensions?: {
     length?: number;
     width?: number;
@@ -26,7 +27,6 @@ interface Product {
 }
 
 export default function EditProductPage() {
-  const router = useRouter();
   const params = useParams();
   const productId = params.productId as string;
   
@@ -64,16 +64,10 @@ export default function EditProductPage() {
     { value: 'other', label: 'Other' }
   ];
 
-  useEffect(() => {
-    loadProduct();
-  }, [productId]);
-
-  const loadProduct = async () => {
+  const loadProduct = useCallback(async () => {
     try {
       const response = await fetch(`/api/supplier/products/${productId}`, {
-        headers: {
-          'x-seller-id': 'temp-seller-id' // TODO: Get from auth
-        }
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) {
@@ -107,7 +101,11 @@ export default function EditProductPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [productId]);
+
+  useEffect(() => {
+    loadProduct();
+  }, [productId, loadProduct]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -117,7 +115,7 @@ export default function EditProductPage() {
       setFormData(prev => ({
         ...prev,
         [parent]: {
-          ...prev[parent as keyof typeof prev] as any,
+          ...prev[parent as keyof typeof prev] as Record<string, unknown>,
           [child]: value
         }
       }));
@@ -155,7 +153,7 @@ export default function EditProductPage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'x-seller-id': 'temp-seller-id'
+          ...getAuthHeaders()
         },
         body: JSON.stringify(payload)
       });

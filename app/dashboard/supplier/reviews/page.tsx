@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { getAuthHeaders } from '@/lib/supplier-auth';
 
 interface Review {
   _id: string;
@@ -30,19 +31,15 @@ export default function ReviewsPage() {
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
   const [responseText, setResponseText] = useState('');
 
-  const tabs = [
+  const tabs = useMemo(() => [
     { id: 'all', label: 'All Reviews', count: 0 },
     { id: 'good', label: 'Positive', count: 0 },
     { id: 'moderate', label: 'Neutral', count: 0 },
     { id: 'poor', label: 'Negative', count: 0 },
     { id: 'flagged', label: 'Flagged', count: 0 }
-  ];
+  ], []);
 
-  useEffect(() => {
-    loadReviews();
-  }, [activeTab, searchTerm]);
-
-  const loadReviews = async () => {
+  const loadReviews = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -52,9 +49,7 @@ export default function ReviewsPage() {
       });
 
       const response = await fetch(`/api/supplier/reviews?${params}`, {
-        headers: {
-          'x-seller-id': 'temp-seller-id' // TODO: Get from auth
-        }
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) {
@@ -69,7 +64,11 @@ export default function ReviewsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, searchTerm]);
+
+  useEffect(() => {
+    loadReviews();
+  }, [activeTab, searchTerm, loadReviews]);
 
   const handleResponse = async (reviewId: string) => {
     if (!responseText.trim()) {
@@ -82,7 +81,7 @@ export default function ReviewsPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-seller-id': 'temp-seller-id'
+          ...getAuthHeaders()
         },
         body: JSON.stringify({ response: responseText })
       });
@@ -109,7 +108,7 @@ export default function ReviewsPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-seller-id': 'temp-seller-id'
+          ...getAuthHeaders()
         },
         body: JSON.stringify({ flagged })
       });
@@ -161,7 +160,7 @@ export default function ReviewsPage() {
         tab.count = reviews.filter(review => review.sentiment === tab.id).length;
       }
     });
-  }, [reviews]);
+  }, [reviews, tabs]);
 
   if (loading && reviews.length === 0) {
     return (

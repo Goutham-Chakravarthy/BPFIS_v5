@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { getAuthHeaders } from '@/lib/supplier-auth';
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
@@ -56,7 +57,7 @@ export default function SettingsPage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'x-seller-id': 'temp-seller-id' // TODO: Get from auth
+          ...getAuthHeaders()
         },
         body: JSON.stringify(settings)
       });
@@ -108,18 +109,24 @@ export default function SettingsPage() {
                   <p className="font-medium text-[#1f3b2c]">Email Notifications</p>
                   <p className="text-sm text-[#6b7280]">Receive important updates via email</p>
                 </div>
-                <button
-                  onClick={() => handleToggle('emailNotifications')}
+                <label
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     settings.emailNotifications ? 'bg-[#1f3b2c]' : 'bg-gray-200'
                   }`}
+                  aria-label="Toggle email notifications"
                 >
+                  <input
+                    type="checkbox"
+                    checked={settings.emailNotifications}
+                    onChange={() => handleToggle('emailNotifications')}
+                    className="sr-only"
+                  />
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                       settings.emailNotifications ? 'translate-x-6' : 'translate-x-1'
                     }`}
                   />
-                </button>
+                </label>
               </div>
 
               <div className="flex items-center justify-between py-3 border-b border-[#e2d4b7]">
@@ -127,18 +134,24 @@ export default function SettingsPage() {
                   <p className="font-medium text-[#1f3b2c]">SMS Notifications</p>
                   <p className="text-sm text-[#6b7280]">Get instant alerts on your phone</p>
                 </div>
-                <button
-                  onClick={() => handleToggle('smsNotifications')}
+                <label
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     settings.smsNotifications ? 'bg-[#1f3b2c]' : 'bg-gray-200'
                   }`}
+                  aria-label="Toggle SMS notifications"
                 >
+                  <input
+                    type="checkbox"
+                    checked={settings.smsNotifications}
+                    onChange={() => handleToggle('smsNotifications')}
+                    className="sr-only"
+                  />
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                       settings.smsNotifications ? 'translate-x-6' : 'translate-x-1'
                     }`}
                   />
-                </button>
+                </label>
               </div>
 
               <div className="flex items-center justify-between py-3 border-b border-[#e2d4b7]">
@@ -146,18 +159,24 @@ export default function SettingsPage() {
                   <p className="font-medium text-[#1f3b2c]">Order Notifications</p>
                   <p className="text-sm text-[#6b7280]">Alerts for new orders and status changes</p>
                 </div>
-                <button
-                  onClick={() => handleToggle('orderNotifications')}
+                <label
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     settings.orderNotifications ? 'bg-[#1f3b2c]' : 'bg-gray-200'
                   }`}
+                  aria-label="Toggle order notifications"
                 >
+                  <input
+                    type="checkbox"
+                    checked={settings.orderNotifications}
+                    onChange={() => handleToggle('orderNotifications')}
+                    className="sr-only"
+                  />
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                       settings.orderNotifications ? 'translate-x-6' : 'translate-x-1'
                     }`}
                   />
-                </button>
+                </label>
               </div>
 
               <div className="flex items-center justify-between py-3 border-b border-[#e2d4b7]">
@@ -165,18 +184,24 @@ export default function SettingsPage() {
                   <p className="font-medium text-[#1f3b2c]">Low Stock Alerts</p>
                   <p className="text-sm text-[#6b7280]">Get notified when inventory is running low</p>
                 </div>
-                <button
-                  onClick={() => handleToggle('lowStockAlerts')}
+                <label
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     settings.lowStockAlerts ? 'bg-[#1f3b2c]' : 'bg-gray-200'
                   }`}
+                  aria-label="Toggle low stock alerts"
                 >
+                  <input
+                    type="checkbox"
+                    checked={settings.lowStockAlerts}
+                    onChange={() => handleToggle('lowStockAlerts')}
+                    className="sr-only"
+                  />
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                       settings.lowStockAlerts ? 'translate-x-6' : 'translate-x-1'
                     }`}
                   />
-                </button>
+                </label>
               </div>
 
               <div className="flex items-center justify-between py-3 border-b border-[#e2d4b7]">
@@ -184,18 +209,24 @@ export default function SettingsPage() {
                   <p className="font-medium text-[#1f3b2c]">Review Notifications</p>
                   <p className="text-sm text-[#6b7280]">Alerts for new customer reviews</p>
                 </div>
-                <button
-                  onClick={() => handleToggle('reviewNotifications')}
+                <label
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     settings.reviewNotifications ? 'bg-[#1f3b2c]' : 'bg-gray-200'
                   }`}
+                  aria-label="Toggle review notifications"
                 >
+                  <input
+                    type="checkbox"
+                    checked={settings.reviewNotifications}
+                    onChange={() => handleToggle('reviewNotifications')}
+                    className="sr-only"
+                  />
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                       settings.reviewNotifications ? 'translate-x-6' : 'translate-x-1'
                     }`}
                   />
-                </button>
+                </label>
               </div>
 
               <div className="flex items-center justify-between py-3">
@@ -203,18 +234,24 @@ export default function SettingsPage() {
                   <p className="font-medium text-[#1f3b2c]">Marketing Emails</p>
                   <p className="text-sm text-[#6b7280]">Receive promotional offers and updates</p>
                 </div>
-                <button
-                  onClick={() => handleToggle('marketingEmails')}
+                <label
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     settings.marketingEmails ? 'bg-[#1f3b2c]' : 'bg-gray-200'
                   }`}
+                  aria-label="Toggle marketing emails"
                 >
+                  <input
+                    type="checkbox"
+                    checked={settings.marketingEmails}
+                    onChange={() => handleToggle('marketingEmails')}
+                    className="sr-only"
+                  />
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                       settings.marketingEmails ? 'translate-x-6' : 'translate-x-1'
                     }`}
                   />
-                </button>
+                </label>
               </div>
             </div>
           </div>
@@ -234,6 +271,7 @@ export default function SettingsPage() {
                   value={settings.defaultShippingMethod}
                   onChange={(e) => handleSelect('defaultShippingMethod', e.target.value)}
                   className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] focus:border-transparent text-gray-700"
+                  aria-label="Select default shipping method"
                 >
                   <option value="standard">Standard Shipping</option>
                   <option value="express">Express Shipping</option>
@@ -249,6 +287,7 @@ export default function SettingsPage() {
                   value={settings.returnPolicy}
                   onChange={(e) => handleSelect('returnPolicy', e.target.value)}
                   className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] focus:border-transparent text-gray-700"
+                  aria-label="Select return policy"
                 >
                   <option value="7-days">7 Days</option>
                   <option value="15-days">15 Days</option>
@@ -265,6 +304,7 @@ export default function SettingsPage() {
                   value={settings.currency}
                   onChange={(e) => handleSelect('currency', e.target.value)}
                   className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] focus:border-transparent text-gray-700"
+                  aria-label="Select currency"
                 >
                   <option value="INR">Indian Rupee (₹)</option>
                   <option value="USD">US Dollar ($)</option>
@@ -280,6 +320,7 @@ export default function SettingsPage() {
                   value={settings.timezone}
                   onChange={(e) => handleSelect('timezone', e.target.value)}
                   className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] focus:border-transparent text-gray-700"
+                  aria-label="Select timezone"
                 >
                   <option value="Asia/Kolkata">India Standard Time</option>
                   <option value="UTC">UTC</option>
@@ -292,18 +333,24 @@ export default function SettingsPage() {
                   <p className="font-medium text-[#1f3b2c]">Auto-confirm Orders</p>
                   <p className="text-sm text-[#6b7280]">Automatically accept new orders</p>
                 </div>
-                <button
-                  onClick={() => handleToggle('autoConfirmOrders')}
+                <label
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     settings.autoConfirmOrders ? 'bg-[#1f3b2c]' : 'bg-gray-200'
                   }`}
+                  aria-label="Toggle auto-confirm orders"
                 >
+                  <input
+                    type="checkbox"
+                    checked={settings.autoConfirmOrders}
+                    onChange={() => handleToggle('autoConfirmOrders')}
+                    className="sr-only"
+                  />
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                       settings.autoConfirmOrders ? 'translate-x-6' : 'translate-x-1'
                     }`}
                   />
-                </button>
+                </label>
               </div>
 
               <div className="flex items-center justify-between py-3">
@@ -311,18 +358,24 @@ export default function SettingsPage() {
                   <p className="font-medium text-[#1f3b2c]">Tax Inclusive Prices</p>
                   <p className="text-sm text-[#6b7280]">Show prices including tax</p>
                 </div>
-                <button
-                  onClick={() => handleToggle('taxInclusive')}
+                <label
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     settings.taxInclusive ? 'bg-[#1f3b2c]' : 'bg-gray-200'
                   }`}
+                  aria-label="Toggle tax inclusive prices"
                 >
+                  <input
+                    type="checkbox"
+                    checked={settings.taxInclusive}
+                    onChange={() => handleToggle('taxInclusive')}
+                    className="sr-only"
+                  />
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                       settings.taxInclusive ? 'translate-x-6' : 'translate-x-1'
                     }`}
                   />
-                </button>
+                </label>
               </div>
             </div>
           </div>
@@ -340,18 +393,24 @@ export default function SettingsPage() {
                 <p className="font-medium text-[#1f3b2c]">Two-Factor Authentication</p>
                 <p className="text-sm text-[#6b7280]">Add an extra layer of security</p>
               </div>
-              <button
-                onClick={() => handleToggle('twoFactorAuth')}
+              <label
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   settings.twoFactorAuth ? 'bg-[#1f3b2c]' : 'bg-gray-200'
                 }`}
+                aria-label="Toggle two-factor authentication"
               >
+                <input
+                  type="checkbox"
+                  checked={settings.twoFactorAuth}
+                  onChange={() => handleToggle('twoFactorAuth')}
+                  className="sr-only"
+                />
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                     settings.twoFactorAuth ? 'translate-x-6' : 'translate-x-1'
                   }`}
                 />
-              </button>
+              </label>
             </div>
 
             <div>
@@ -362,6 +421,7 @@ export default function SettingsPage() {
                 value={settings.sessionTimeout}
                 onChange={(e) => handleSelect('sessionTimeout', e.target.value)}
                 className="w-full px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] focus:border-transparent text-gray-700"
+                aria-label="Select session timeout"
               >
                 <option value="1h">1 Hour</option>
                 <option value="8h">8 Hours</option>
@@ -372,13 +432,13 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-4">
-            <button className="w-full px-4 py-2 border border-[#e2d4b7] rounded-md text-sm font-medium text-[#1f3b2c] hover:bg-[#f9fafb]">
+            <button className="w-full px-4 py-2 border border-[#e2d4b7] rounded-md text-sm font-medium text-[#1f3b2c] hover:bg-[#f9fafb]" aria-label="Change password">
               Change Password
             </button>
-            <button className="w-full px-4 py-2 border border-[#e2d4b7] rounded-md text-sm font-medium text-[#1f3b2c] hover:bg-[#f9fafb]">
+            <button className="w-full px-4 py-2 border border-[#e2d4b7] rounded-md text-sm font-medium text-[#1f3b2c] hover:bg-[#f9fafb]" aria-label="Download my data">
               Download My Data
             </button>
-            <button className="w-full px-4 py-2 border border-red-300 rounded-md text-sm font-medium text-red-600 hover:bg-red-50">
+            <button className="w-full px-4 py-2 border border-red-300 rounded-md text-sm font-medium text-red-600 hover:bg-red-50" aria-label="Delete account">
               Delete Account
             </button>
           </div>

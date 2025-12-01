@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
       farmerInput[nk] = farmerInputRaw[k];
     }
 
-    const filePath = path.resolve(process.cwd(), "GOVT SCHEMES LIST1.xlsx");
+    const filePath = path.resolve(process.cwd(), "Government_Scheme_Applicability_Dataset.xlsx");
     if (!fs.existsSync(filePath)) {
       return NextResponse.json({ error: "Excel file not found at project root." }, { status: 500 });
     }
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
 
       for (const { label, key } of headerKeys) {
         // skip scheme name and link from eligibility checks by specific heuristics
-        if (/name/i.test(label) || /link|url/i.test(label) || /description|notes/i.test(label)) {
+        if (/scheme name/i.test(label) || /scheme link/i.test(label)) {
           continue;
         }
 
@@ -137,8 +137,8 @@ export async function POST(req: NextRequest) {
 
       if (ok) {
         // Build compact scheme response (name + link + raw row)
-        const nameLabel = headers.find(h => /name/i.test(h)) || headers[0];
-        const linkLabel = headers.find(h => /link|url/i.test(h)) || headers.find(h => /website/i.test(h)) || null;
+        const nameLabel = headers.find(h => /scheme name/i.test(h)) || headers[0];
+        const linkLabel = headers.find(h => /scheme link/i.test(h)) || null;
 
         eligible.push({
           name: (row as any)[nameLabel] || "Unnamed Scheme",

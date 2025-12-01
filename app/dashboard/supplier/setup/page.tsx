@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { getAuthHeaders } from '@/lib/supplier-auth';
 
 interface SetupFormData {
   gstNumber: string;
@@ -41,20 +42,7 @@ export default function ProfileSetupPage() {
     }
   });
 
-  useEffect(() => {
-    // Check if setup is actually needed
-    checkSetupStatus();
-  }, []);
-
-  useEffect(() => {
-    // For development: Clear any existing profile data to test fresh setup
-    if (typeof window !== 'undefined') {
-      // Optional: Uncomment this line to always clear profile on setup page load for testing
-      // localStorage.removeItem('sellerProfile');
-    }
-  }, []);
-
-  const checkSetupStatus = async () => {
+  const checkSetupStatus = useCallback(async () => {
     try {
       // For development, check localStorage first
       const localProfile = localStorage.getItem('sellerProfile');
@@ -65,9 +53,7 @@ export default function ProfileSetupPage() {
       }
 
       const response = await fetch('/api/seller', {
-        headers: {
-          'x-seller-id': 'temp-seller-id' // TODO: Get from auth
-        }
+        headers: getAuthHeaders()
       });
 
       const data = await response.json();
@@ -81,7 +67,20 @@ export default function ProfileSetupPage() {
       console.error('Error checking setup status:', error);
       // On error, show setup form anyway
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    // Check if setup is actually needed
+    checkSetupStatus();
+  }, [checkSetupStatus]);
+
+  useEffect(() => {
+    // For development: Clear any existing profile data to test fresh setup
+    if (typeof window !== 'undefined') {
+      // Optional: Uncomment this line to always clear profile on setup page load for testing
+      // localStorage.removeItem('sellerProfile');
+    }
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -91,7 +90,7 @@ export default function ProfileSetupPage() {
       setFormData(prev => ({
         ...prev,
         [parent]: {
-          ...prev[parent as keyof typeof prev] as any,
+          ...prev[parent as keyof typeof prev] as Record<string, unknown>,
           [child]: value
         }
       }));
@@ -122,7 +121,7 @@ export default function ProfileSetupPage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'x-seller-id': 'temp-seller-id'
+          ...getAuthHeaders()
         },
         body: JSON.stringify({
           ...formData,
@@ -173,7 +172,7 @@ export default function ProfileSetupPage() {
             <span className="text-white font-bold text-2xl">A</span>
           </div>
           <h1 className="text-3xl font-bold text-[#1f3b2c] mb-2">Welcome to Agrilink</h1>
-          <p className="text-[#6b7280]">Let's set up your supplier profile to get started</p>
+          <p className="text-[#6b7280]">Let&apos;s set up your supplier profile to get started</p>
         </div>
 
         {/* Setup Form */}

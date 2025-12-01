@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import { getAuthHeaders } from '@/lib/supplier-auth';
 
 interface Order {
   _id: string;
@@ -43,20 +44,16 @@ export default function OrdersPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const tabs = [
+  const tabs = useMemo(() => [
     { id: 'all', label: 'All Orders', count: 0 },
     { id: 'new', label: 'New', count: 0 },
     { id: 'processing', label: 'Processing', count: 0 },
     { id: 'shipped', label: 'Shipped', count: 0 },
     { id: 'delivered', label: 'Delivered', count: 0 },
     { id: 'returned', label: 'Returns', count: 0 }
-  ];
+  ], []);
 
-  useEffect(() => {
-    loadOrders();
-  }, [activeTab, searchTerm]);
-
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -65,9 +62,7 @@ export default function OrdersPage() {
       });
 
       const response = await fetch(`/api/supplier/orders?${params}`, {
-        headers: {
-          'x-seller-id': 'temp-seller-id' // TODO: Get from auth
-        }
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) {
@@ -82,7 +77,11 @@ export default function OrdersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, searchTerm]);
+
+  useEffect(() => {
+    loadOrders();
+  }, [activeTab, searchTerm, loadOrders]);
 
   const handleStatusUpdate = async (orderId: string, newStatus: string) => {
     try {
@@ -90,7 +89,7 @@ export default function OrdersPage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'x-seller-id': 'temp-seller-id'
+          ...getAuthHeaders()
         },
         body: JSON.stringify({ orderStatus: newStatus })
       });
@@ -140,7 +139,7 @@ export default function OrdersPage() {
         tab.count = orders.filter(order => order.orderStatus === tab.id).length;
       }
     });
-  }, [orders]);
+  }, [orders, tabs]);
 
   if (loading && orders.length === 0) {
     return (
@@ -322,6 +321,7 @@ export default function OrdersPage() {
                             onChange={(e) => handleStatusUpdate(order._id, e.target.value)}
                             className="text-xs border border-[#e2d4b7] rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#1f3b2c] text-gray-700"
                             defaultValue=""
+                            aria-label={`Update status for order ${order.orderNumber}`}
                           >
                             <option value="" disabled>Update</option>
                             {order.orderStatus === 'new' && (

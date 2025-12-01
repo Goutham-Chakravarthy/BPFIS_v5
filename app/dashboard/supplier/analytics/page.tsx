@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { getAuthHeaders } from '@/lib/supplier-auth';
 
 interface AnalyticsData {
   overview: {
@@ -35,17 +36,11 @@ export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState('7d');
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    loadAnalytics();
-  }, [timeRange]);
-
-  const loadAnalytics = async () => {
+  const loadAnalytics = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/supplier/analytics?range=${timeRange}`, {
-        headers: {
-          'x-seller-id': 'temp-seller-id' // TODO: Get from auth
-        }
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) {
@@ -60,7 +55,11 @@ export default function AnalyticsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange]);
+
+  useEffect(() => {
+    loadAnalytics();
+  }, [timeRange, loadAnalytics]);
 
   if (loading) {
     return (
@@ -93,6 +92,7 @@ export default function AnalyticsPage() {
           value={timeRange}
           onChange={(e) => setTimeRange(e.target.value)}
           className="px-3 py-2 border border-[#e2d4b7] rounded-md focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] focus:border-transparent text-gray-700"
+          aria-label="Select time range for analytics"
         >
           <option value="7d">Last 7 days</option>
           <option value="30d">Last 30 days</option>
@@ -242,12 +242,12 @@ export default function AnalyticsPage() {
                       <span className="text-sm font-medium text-[#1f3b2c] capitalize">{category.category}</span>
                       <span className="text-sm text-[#6b7280]">{category.percentage}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-[#1f3b2c] h-2 rounded-full"
-                        style={{ width: `${category.percentage}%` }}
-                      ></div>
-                    </div>
+                    <progress
+                      value={category.percentage}
+                      max={100}
+                      className="w-full h-2"
+                      aria-label={`Sales percentage for ${category.category}`}
+                    />
                   </div>
                   <div className="ml-4 text-right">
                     <p className="text-sm font-medium text-[#1f3b2c]">₹{category.revenue.toLocaleString()}</p>

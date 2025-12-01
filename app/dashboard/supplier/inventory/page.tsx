@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { getAuthHeaders } from '@/lib/supplier-auth';
 
 interface LowStockProduct {
   _id: string;
@@ -48,9 +49,7 @@ export default function InventoryPage() {
     try {
       // Load low stock products
       const lowStockResponse = await fetch('/api/supplier/inventory/low-stock', {
-        headers: {
-          'x-seller-id': 'temp-seller-id' // TODO: Get from auth
-        }
+        headers: getAuthHeaders()
       });
 
       if (lowStockResponse.ok) {
@@ -60,9 +59,7 @@ export default function InventoryPage() {
 
       // Load recent inventory logs
       const logsResponse = await fetch('/api/supplier/inventory/logs?limit=10', {
-        headers: {
-          'x-seller-id': 'temp-seller-id'
-        }
+        headers: getAuthHeaders()
       });
 
       if (logsResponse.ok) {
@@ -92,7 +89,7 @@ export default function InventoryPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-seller-id': 'temp-seller-id'
+          ...getAuthHeaders()
         },
         body: JSON.stringify({
           productId: selectedProduct,
