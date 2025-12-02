@@ -1,8 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 export default function FarmerOverviewPage() {
+  const searchParams = useSearchParams();
+  const userId = searchParams.get('userId');
+  
   const [stats] = useState({
     totalLand: '24.5',
     activeCrops: 3,
@@ -90,7 +94,7 @@ export default function FarmerOverviewPage() {
           </a>
 
           <a
-            href="http://localhost:3001/dashboard/farmer/crop-price-prediction?userId=692b0ee45fc507209a9dc6f1"
+            href={`/dashboard/farmer/crop-price-prediction${userId ? `?userId=${userId}` : ''}`}
             className="group bg-white rounded-xl p-6 shadow-lg border border-[#e5e7eb] hover:shadow-xl hover:border-[#1e40af] transition-all text-left"
           >
             <div className="flex items-start gap-4">
