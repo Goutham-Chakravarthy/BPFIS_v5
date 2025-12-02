@@ -11,6 +11,7 @@ contract LandIntegrationAgreement {
         uint256 timestamp;
         bool isActive;
         address createdBy;
+        string documentCid; // IPFS document hash
     }
 
     struct Signature {
@@ -33,7 +34,8 @@ contract LandIntegrationAgreement {
         string indexed agreementId,
         string farmer1Name,
         string farmer2Name,
-        uint256 timestamp
+        uint256 timestamp,
+        string documentCid
     );
     
     event AgreementSigned(
@@ -62,7 +64,8 @@ contract LandIntegrationAgreement {
         string memory _farmer1Name,
         string memory _farmer2Name,
         uint256 _farmer1LandSize,
-        uint256 _farmer2LandSize
+        uint256 _farmer2LandSize,
+        string memory _documentCid
     ) public onlyAdmin returns (string memory) {
         agreementCounter++;
         string memory agreementId = string(abi.encodePacked("AGR", _uint2str(agreementCounter)));
@@ -75,7 +78,8 @@ contract LandIntegrationAgreement {
             farmer2LandSize: _farmer2LandSize,
             timestamp: block.timestamp,
             isActive: true,
-            createdBy: msg.sender
+            createdBy: msg.sender,
+            documentCid: _documentCid
         });
         
         allAgreementIds.push(agreementId);
@@ -84,7 +88,8 @@ contract LandIntegrationAgreement {
             agreementId,
             _farmer1Name,
             _farmer2Name,
-            block.timestamp
+            block.timestamp,
+            _documentCid
         );
         
         return agreementId;

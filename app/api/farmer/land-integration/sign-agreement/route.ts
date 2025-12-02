@@ -80,11 +80,45 @@ export async function POST(request: Request) {
       (sig: any) => sig.userId === otherUserId
     );
 
-    // If both signed, mark as fully executed
+    // If both signed, mark as fully executed and upload to blockchain
     if (otherUserSigned) {
       integrationRequest.status = 'completed';
       integrationRequest.executionDate = new Date();
       integrationRequest.agreementDocument = `/agreements/${integrationRequest._id}_signed.pdf`;
+
+      // Automatically upload to blockchain
+      try {
+        const blockchainResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/blockchain/upload-automatic`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            agreementId: integrationRequest._id.toString(),
+            farmer1Name: integrationRequest.requestingUserName || 'Farmer 1',
+            farmer2Name: integrationRequest.targetUserName || 'Farmer 2',
+            farmer1LandSize: integrationRequest.requestingUserLandSize || 1,
+            farmer2LandSize: integrationRequest.targetUserLandSize || 1,
+            documentPath: integrationRequest.agreementDocument,
+            bothSigned: true
+          })
+        });
+
+        const blockchainResult = await blockchainResponse.json();
+        
+        if (blockchainResult.success) {
+          integrationRequest.blockchainUploaded = true;
+          integrationRequest.blockchainTransactionHash = blockchainResult.transactionHash;
+          integrationRequest.blockchainDocumentCid = blockchainResult.documentCid;
+          integrationRequest.blockchainUploadedAt = new Date();
+          console.log(`✅ Agreement ${integrationRequest._id} uploaded to blockchain: ${blockchainResult.transactionHash}`);
+        } else {
+          console.error(`❌ Failed to upload agreement ${integrationRequest._id} to blockchain:`, blockchainResult.error);
+        }
+      } catch (blockchainError) {
+        console.error(`❌ Error uploading agreement ${integrationRequest._id} to blockchain:`, blockchainError);
+        // Don't fail the signing process, just log the error
+      }
     }
 
     await integrationRequest.save();
@@ -92,10 +126,12 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: otherUserSigned ? 
-        'Agreement fully executed by both parties' : 
+        `Agreement fully executed by both parties and uploaded to blockchain! Transaction: ${integrationRequest.blockchainTransactionHash || 'Processing...'}` : 
         'Agreement signed successfully. Waiting for other party to sign.',
       signedBy: signatureData.userName,
       fullyExecuted: otherUserSigned,
+      blockchainUploaded: integrationRequest.blockchainUploaded || false,
+      blockchainTransactionHash: integrationRequest.blockchainTransactionHash,
       signatures: integrationRequest.signatures.map((sig: any) => ({
         userName: sig.userName,
         signedAt: sig.signedAt
