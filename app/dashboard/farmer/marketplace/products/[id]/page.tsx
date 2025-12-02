@@ -84,6 +84,7 @@ export default function ProductDetailPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [showAddedToCart, setShowAddedToCart] = useState(false);
 
   // Helper function to build URLs with userId
   const buildUrl = (path: string) => {
@@ -583,13 +584,6 @@ export default function ProductDetailPage() {
   const buildUrl = (path: string) => {
     return userId ? `${path}?userId=${userId}` : path;
   };
-  
-  const [product, setProduct] = useState<Product | null>(null);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [quantity, setQuantity] = useState(1);
-  const [showAddedToCart, setShowAddedToCart] = useState(false);
-  const [activeTab, setActiveTab] = useState('description');
 
   useEffect(() => {
     if (productId) {
