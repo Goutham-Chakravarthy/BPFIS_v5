@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     // Get real analytics data from database - simplified approach
     const orders = await Order.find({ 
-      sellerId: sellerObjectId, 
+      sellerId: sellerObjectId as any, 
       createdAt: { $gte: startDate } 
     }).populate('items.productId');
 
@@ -51,14 +51,14 @@ export async function GET(request: NextRequest) {
 
     const totalOrders = orders.length;
 
-    const activeProductsCount = await Product.countDocuments({ sellerId: sellerObjectId, status: 'active' });
+    const activeProductsCount = await Product.countDocuments({ sellerId: sellerObjectId as any, status: 'active' });
 
     // Calculate growth metrics
     const previousStartDate = new Date(startDate);
     previousStartDate.setDate(previousStartDate.getDate() - (range === '7d' ? 7 : range === '30d' ? 30 : 90));
 
     const previousOrders = await Order.find({ 
-      sellerId: sellerObjectId, 
+      sellerId: sellerObjectId as any, 
       createdAt: { $gte: previousStartDate, $lt: startDate } 
     }).populate('items.productId');
 

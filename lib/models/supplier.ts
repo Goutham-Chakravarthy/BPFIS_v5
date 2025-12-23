@@ -1,5 +1,14 @@
 import mongoose, { Schema, model, Document, models } from 'mongoose';
 
+// Document interface for verification tracking
+interface IDocument {
+  url: string;
+  status: 'pending' | 'verified' | 'rejected';
+  verifiedAt?: Date;
+  verifiedBy?: string;
+  rejectionReason?: string;
+}
+
 // Seller Document Schema
 export interface ISeller extends Document {
   companyName: string;
@@ -22,10 +31,10 @@ export interface ISeller extends Document {
   };
   verificationStatus: 'pending' | 'verified' | 'rejected';
   documents: {
-    businessCertificate?: string;
-    tradeLicense?: string;
-    ownerIdProof?: string;
-    gstCertificate?: string;
+    businessCertificate?: IDocument | string;
+    tradeLicense?: IDocument | string;
+    ownerIdProof?: IDocument | string;
+    gstCertificate?: IDocument | string;
   };
   settings?: {
     emailNotifications: boolean;
@@ -52,6 +61,33 @@ export interface ISeller extends Document {
   updatedAt: Date;
 }
 
+// Document schema for verification tracking
+const DocumentSchema = new Schema({
+  url: { type: String, required: true },
+  status: { 
+    type: String, 
+    enum: ['pending', 'verified', 'rejected'], 
+    default: 'pending' 
+  },
+  verifiedAt: { type: Date },
+  verifiedBy: { type: String },
+  rejectionReason: { type: String }
+}, { _id: false, discriminatorKey: 'type' });
+
+// Allow both string and object types for documents
+const MixedDocumentSchema = new Schema({
+  type: { type: String, default: 'object' },
+  url: { type: String },
+  status: { 
+    type: String, 
+    enum: ['pending', 'verified', 'rejected'], 
+    default: 'pending' 
+  },
+  verifiedAt: { type: Date },
+  verifiedBy: { type: String },
+  rejectionReason: { type: String }
+}, { _id: false });
+
 const SellerSchema = new Schema<ISeller>({
   companyName: { type: String, required: true },
   email: { type: String, required: true, unique: true },
@@ -77,10 +113,10 @@ const SellerSchema = new Schema<ISeller>({
     default: 'pending' 
   },
   documents: {
-    businessCertificate: { type: String },
-    tradeLicense: { type: String },
-    ownerIdProof: { type: String },
-    gstCertificate: { type: String }
+    businessCertificate: { type: Schema.Types.Mixed, default: null },
+    tradeLicense: { type: Schema.Types.Mixed, default: null },
+    ownerIdProof: { type: Schema.Types.Mixed, default: null },
+    gstCertificate: { type: Schema.Types.Mixed, default: null }
   },
   settings: {
     emailNotifications: { type: Boolean, default: true },

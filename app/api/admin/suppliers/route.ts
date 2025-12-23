@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     
     const { searchParams } = new URL(request.url);
     const searchTerm = searchParams.get('search') || '';
-    const filter = searchParams.get('filter') || 'all';
+    const filter = searchParams.get('status') || 'all';
     
     // Build query based on filters
     let supplierQuery: any = {};
@@ -23,12 +23,12 @@ export async function GET(request: NextRequest) {
     }
     
     if (filter !== 'all') {
-      supplierQuery.status = filter;
+      supplierQuery.verificationStatus = filter;
     }
     
     // Get suppliers with additional info
     const suppliers = await Seller.find(supplierQuery)
-      .select('name email phone companyName gstNumber status createdAt documents')
+      .select('name email phone companyName gstNumber verificationStatus createdAt documents')
       .sort({ createdAt: -1 })
       .lean();
     

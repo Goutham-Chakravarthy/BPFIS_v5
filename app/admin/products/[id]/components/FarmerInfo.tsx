@@ -15,6 +15,7 @@ interface FarmerInfoProps {
       state?: string;
       country?: string;
       zipCode?: string;
+      pincode?: string;
     };
     verificationStatus: 'verified' | 'pending' | 'rejected';
     farmName?: string;
@@ -59,13 +60,16 @@ export default function FarmerInfo({ farmer }: FarmerInfoProps) {
   const getFullAddress = () => {
     if (!farmer.address) return 'No address provided';
     
-    const { street, city, state, country, zipCode } = farmer.address;
+    // Handle both zipCode and pincode, and ensure address is an object
+    if (typeof farmer.address !== 'object') return 'Invalid address format';
+    
+    const { street, city, state, country, zipCode, pincode } = farmer.address;
     const addressParts = [];
     
     if (street) addressParts.push(street);
     if (city) addressParts.push(city);
     if (state) addressParts.push(state);
-    if (zipCode) addressParts.push(zipCode);
+    if (zipCode || pincode) addressParts.push(zipCode || pincode);
     if (country) addressParts.push(country);
     
     return addressParts.length > 0 ? addressParts.join(', ') : 'No address provided';

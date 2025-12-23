@@ -193,8 +193,8 @@ export default function ProductsPage() {
     };
 
     return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusClasses[status]}`}>
-        {statusLabels[status]}
+      <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusClasses[status] || 'bg-gray-100 text-gray-800'}`}>
+        {statusLabels[status] || status}
       </span>
     );
   };
@@ -244,17 +244,8 @@ export default function ProductsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Products</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Manage your products and inventory
+            View products and inventory
           </p>
-        </div>
-        <div className="mt-4 md:mt-0">
-          <button
-            onClick={() => router.push('/admin/products/new')}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            <FiPackage className="mr-2 h-4 w-4" />
-            Add Product
-          </button>
         </div>
       </div>
 
@@ -333,89 +324,6 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="bg-white shadow rounded-lg p-4 mb-6">
-        <div className="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4">
-          <div className="flex-1">
-            <label htmlFor="search" className="sr-only">
-              Search
-            </label>
-            <div className="relative rounded-md shadow-sm">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiSearch className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                name="search"
-                id="search"
-                value={filters.search}
-                onChange={handleFilterChange}
-                className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
-                placeholder="Search products..."
-              />
-            </div>
-          </div>
-          <div className="w-full sm:w-auto">
-            <select
-              id="status"
-              name="status"
-              value={filters.status}
-              onChange={handleFilterChange}
-              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-            >
-              <option value="">All Statuses</option>
-              <option value="draft">Draft</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-              <option value="archived">Archived</option>
-            </select>
-          </div>
-          <div className="w-full sm:w-auto">
-            <select
-              id="category"
-              name="category"
-              value={filters.category}
-              onChange={handleFilterChange}
-              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-            >
-              <option value="">All Categories</option>
-              <option value="vegetables">Vegetables</option>
-              <option value="fruits">Fruits</option>
-              <option value="grains">Grains</option>
-              <option value="dairy">Dairy</option>
-              <option value="meat">Meat</option>
-            </select>
-          </div>
-          <div className="w-full sm:w-auto">
-            <select
-              id="sortBy"
-              name="sortBy"
-              value={filters.sortBy}
-              onChange={handleFilterChange}
-              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-            >
-              <option value="newest">Newest</option>
-              <option value="oldest">Oldest</option>
-              <option value="name_asc">Name (A-Z)</option>
-              <option value="name_desc">Name (Z-A)</option>
-              <option value="price_low">Price: Low to High</option>
-              <option value="price_high">Price: High to Low</option>
-              <option value="stock_low">Stock: Low to High</option>
-              <option value="stock_high">Stock: High to Low</option>
-            </select>
-          </div>
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              <FiX className="mr-1 h-4 w-4" />
-              Clear Filters
-            </button>
-          )}
-        </div>
-      </div>
 
       {/* Products Table */}
       <div className="bg-white shadow overflow-hidden sm:rounded-lg">
@@ -522,31 +430,6 @@ export default function ProductsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {format(new Date(product.createdAt), 'MMM d, yyyy')}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => router.push(`/admin/products/${product._id}`)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                          title="View details"
-                        >
-                          <FiEye className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => router.push(`/admin/products/${product._id}/edit`)}
-                          className="text-blue-600 hover:text-blue-900"
-                          title="Edit"
-                        >
-                          <FiEdit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => {}}
-                          className="text-red-600 hover:text-red-900"
-                          title="Delete"
-                        >
-                          <FiTrash2 className="h-4 w-4" />
-                        </button>
-                      </div>
                     </td>
                   </tr>
                 ))}

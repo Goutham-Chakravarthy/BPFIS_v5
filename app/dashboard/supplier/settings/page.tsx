@@ -747,7 +747,7 @@ export default function SettingsPage() {
               rows={3}
               className="input input-md w-full"
               placeholder="Please tell us why you want to delete your account..."
-              style={{ color: '#000', '::placeholder': { color: '#666' } }}
+              style={{ color: '#000' }}
             />
           </div>
 
@@ -760,7 +760,7 @@ export default function SettingsPage() {
               id="deletionPassword"
               className="input input-md w-full max-w-md"
               placeholder="Enter your password to confirm deletion"
-              style={{ color: '#000', '::placeholder': { color: '#666' } }}
+              style={{ color: '#000' }}
             />
           </div>
 

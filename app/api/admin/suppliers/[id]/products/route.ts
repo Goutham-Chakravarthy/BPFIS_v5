@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import { verifyAdminToken } from '@/lib/admin-auth';
 import { connectDB } from '@/lib/db';
-import { Seller } from '@/lib/models/supplier';
+import { Product } from '@/lib/models/supplier';
 
-export async function PUT(
+export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const resolvedParams = await params;
+    const { id } = resolvedParams;
+    
     // Verify admin token
     const token = request.headers.get('cookie')?.split('; ')
       .find(row => row.startsWith('admin-token='))
@@ -31,25 +33,17 @@ export async function PUT(
 
     await connectDB();
     
-    const supplier = await Seller.findByIdAndUpdate(
-      id,
-      { verificationStatus: 'verified' },
-      { new: true }
-    ).select('-passwordHash');
-
-    if (!supplier) {
-      return NextResponse.json(
-        { error: 'Supplier not found' },
-        { status: 404 }
-      );
-    }
+    // Find products by seller ID
+    const products = await Product.find({ sellerId: id })
+      .select('name sku price stockQuantity status')
+      .sort({ createdAt: -1 });
 
     return NextResponse.json({
       success: true,
-      data: supplier,
+      data: products
     });
   } catch (error) {
-    console.error('Error verifying supplier:', error);
+    console.error('Error fetching supplier products:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

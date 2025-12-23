@@ -10,7 +10,7 @@ interface Supplier {
   email: string;
   companyName?: string;
   contactPerson?: string;
-  isVerified: boolean;
+  verificationStatus: 'pending' | 'verified' | 'rejected';
   phone?: string;
   address?: string;
   createdAt: string;
@@ -18,7 +18,7 @@ interface Supplier {
 
 interface Filters {
   search?: string;
-  status?: 'all' | 'verified' | 'pending';
+  status?: 'all' | 'verified' | 'pending' | 'rejected';
   sortBy?: 'newest' | 'oldest' | 'name' | 'company';
 }
 
@@ -124,6 +124,7 @@ export default function SuppliersPage() {
     try {
       const response = await fetch(`/api/admin/suppliers/${supplierId}/verify`, {
         method: 'PUT',
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -220,7 +221,7 @@ export default function SuppliersPage() {
       contact: `"${supplier.name}"`,
       email: `"${supplier.email}"`,
       phone: `"${supplier.phone || ''}"`,
-      status: supplier.isVerified ? 'Verified' : 'Pending',
+      status: supplier.verificationStatus === 'verified' ? 'Verified' : supplier.verificationStatus === 'rejected' ? 'Rejected' : 'Pending',
       joinedAt: new Date(supplier.createdAt).toLocaleDateString()
     }));
     
@@ -429,6 +430,7 @@ export default function SuppliersPage() {
                 <option value="all">All Status</option>
                 <option value="verified">Verified</option>
                 <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
               </select>
             </div>
             
@@ -573,12 +575,14 @@ export default function SuppliersPage() {
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           <span
                             className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                              supplier.isVerified
+                              supplier.verificationStatus === 'verified'
                                 ? 'bg-green-100 text-green-800'
+                                : supplier.verificationStatus === 'rejected'
+                                ? 'bg-red-100 text-red-800'
                                 : 'bg-yellow-100 text-yellow-800'
                             }`}
                           >
-                            {supplier.isVerified ? 'Verified' : 'Pending'}
+                            {supplier.verificationStatus === 'verified' ? 'Verified' : supplier.verificationStatus === 'rejected' ? 'Rejected' : 'Pending'}
                           </span>
                         </td>
                         <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
@@ -589,7 +593,7 @@ export default function SuppliersPage() {
                             >
                               View
                             </button>
-                            {!supplier.isVerified && (
+                            {supplier.verificationStatus !== 'verified' && (
                               <button
                                 onClick={() => handleVerify(supplier._id)}
                                 className="text-green-600 hover:text-green-900"

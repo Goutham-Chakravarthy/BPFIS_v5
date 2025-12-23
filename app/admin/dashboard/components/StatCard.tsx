@@ -13,11 +13,10 @@ interface StatCardProps {
 export default function StatCard({ 
   title, 
   value, 
-  change, 
   icon, 
   color, 
   isLoading = false 
-}: StatCardProps) {
+}: Omit<StatCardProps, 'change'>) {
   if (isLoading) {
     return (
       <div className="bg-white p-6 rounded-lg shadow animate-pulse">
@@ -41,18 +40,6 @@ export default function StatCard({
         <div>
           <p className="text-sm font-medium text-gray-500">{title}</p>
           <p className="text-2xl font-semibold text-gray-900 mt-1">{value}</p>
-          {change !== undefined && (
-            <div className="flex items-center mt-2">
-              {change >= 0 ? (
-                <FiTrendingUp className="h-4 w-4 text-green-500" />
-              ) : (
-                <FiTrendingDown className="h-4 w-4 text-red-500" />
-              )}
-              <span className={`ml-1 text-sm ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {Math.abs(change)}% {change >= 0 ? 'increase' : 'decrease'} from last month
-              </span>
-            </div>
-          )}
         </div>
         <div className={`p-3 rounded-full ${color} bg-opacity-10`}>
           {icon}

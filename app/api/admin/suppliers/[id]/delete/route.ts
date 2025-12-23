@@ -63,13 +63,13 @@ export async function DELETE(
 
     // Delete all products associated with this supplier
     const deletedProducts = await Product.deleteMany(
-      { sellerId: supplier._id },
+      { sellerId: supplier._id as any },
       { session }
     );
 
     // Delete all orders from this supplier
     const deletedOrders = await Order.deleteMany(
-      { sellerId: supplier._id },
+      { sellerId: supplier._id as any },
       { session }
     );
 
@@ -77,14 +77,14 @@ export async function DELETE(
     const deletedCartItems = await Cart.updateMany(
       { 
         'items.productId': { 
-          $in: await Product.find({ sellerId: supplier._id }).distinct('_id').session(session)
+          $in: await Product.find({ sellerId: supplier._id as any }).distinct('_id').session(session)
         }
       },
       { 
         $pull: { 
           items: { 
             productId: { 
-              $in: await Product.find({ sellerId: supplier._id }).distinct('_id').session(session)
+              $in: await Product.find({ sellerId: supplier._id as any }).distinct('_id').session(session)
             }
           }
         }
@@ -185,9 +185,9 @@ export async function GET(
 
     // Get counts of related data
     const [productCount, orderCount, farmerOrderCount] = await Promise.all([
-      Product.countDocuments({ sellerId: supplier._id }),
-      Order.countDocuments({ sellerId: supplier._id }),
-      FarmerOrder.countDocuments({ 'items.sellerId': supplier._id })
+      Product.countDocuments({ sellerId: supplier._id as any }),
+      Order.countDocuments({ sellerId: supplier._id as any }),
+      FarmerOrder.countDocuments({ 'items.sellerId': supplier._id as any })
     ]);
 
     // Check for deletion requests
