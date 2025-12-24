@@ -1,7 +1,6 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -21,29 +20,6 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch('/api/auth/admin/me');
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Not authenticated');
-        }
-
-        setIsAuthenticated(true);
-      } catch (error) {
-        router.push('/admin-login');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkAuth();
-  }, [router]);
 
   const handleLogout = async () => {
     try {
@@ -55,18 +31,6 @@ export default function AdminLayout({
       console.error('Logout error:', error);
     }
   };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return null;
-  }
 
   return (
     <QueryClientProvider client={queryClient}>

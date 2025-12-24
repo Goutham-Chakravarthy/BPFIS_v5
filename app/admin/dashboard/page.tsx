@@ -9,12 +9,35 @@ import { useDashboardData } from './hooks/useDashboardData';
 export default function AdminDashboard() {
   const { data: stats, isLoading, error } = useDashboardData();
 
+  if (isLoading) {
+    return (
+      <div className="p-6">
+        <div className="pb-5 border-b border-gray-200">
+          <h1 className="text-3xl font-bold leading-tight text-gray-900">Dashboard</h1>
+        </div>
+        <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <StatCard
+              key={i}
+              title="Loading..."
+              value="..."
+              icon={<FiUsers className="h-6 w-6 text-white" />}
+              color="bg-gray-500"
+              isLoading={true}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="p-6">
         <div className="bg-red-50 border border-red-200 rounded-md p-4">
           <h3 className="text-red-800 font-medium">Error loading dashboard</h3>
-          <p className="text-red-600 text-sm mt-1">Failed to load dashboard data. Please try again.</p>
+          <p className="text-red-600 text-sm mt-1">{error.message}</p>
+          <p className="text-red-600 text-sm mt-2">Please refresh the page or contact support.</p>
         </div>
       </div>
     );
@@ -32,23 +55,23 @@ export default function AdminDashboard() {
           value={stats?.totalFarmers?.toLocaleString() || '0'}
           icon={<FiUsers className="h-6 w-6 text-white" />}
           color="bg-indigo-500"
-          isLoading={isLoading}
+          isLoading={false}
         />
-        
+
         <StatCard
           title="Total Suppliers"
           value={stats?.totalSuppliers?.toLocaleString() || '0'}
           icon={<FiPackage className="h-6 w-6 text-white" />}
           color="bg-green-500"
-          isLoading={isLoading}
+          isLoading={false}
         />
-        
+
         <StatCard
           title="Total Products"
           value={stats?.totalProducts?.toLocaleString() || '0'}
           icon={<FiPackage className="h-6 w-6 text-white" />}
           color="bg-yellow-500"
-          isLoading={isLoading}
+          isLoading={false}
         />
       </div>
 
@@ -56,17 +79,17 @@ export default function AdminDashboard() {
         <div className="mb-6">
           <div className="bg-white p-6 rounded-lg shadow">
             <h2 className="text-lg font-medium text-gray-900 mb-4">Recent Activities</h2>
-            <RecentActivities 
-              activities={stats?.recentOrders?.map(order => ({
-                id: order.id,
+            <RecentActivities
+              activities={(stats?.recentOrders || []).map(order => ({
+                id: order?.id || 'unknown',
                 type: 'marketplace_order',
-                title: `Order #${order.id.substring(0, 8)}`,
-                description: `New order from ${order.customer}`,
-                amount: order.amount,
-                status: order.status,
+                title: `Order #${(order?.id || '').substring(0, 8)}`,
+                description: `New order from ${order?.customer || 'Customer'}`,
+                amount: order?.amount || 0,
+                status: order?.status || 'pending',
                 timestamp: new Date(),
-                user: order.customer
-              }))} 
+                user: order?.customer || 'Unknown'
+              }))}
             />
           </div>
         </div>
@@ -74,7 +97,7 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 gap-6">
           <div className="bg-white p-6 rounded-lg shadow">
             <h2 className="text-lg font-medium text-gray-900 mb-4">Top Products</h2>
-            <TopProducts products={stats?.topProducts?.map(product => ({
+            <TopProducts products={(stats?.topProducts || []).map(product => ({
               ...product,
               category: 'General'
             }))} />
