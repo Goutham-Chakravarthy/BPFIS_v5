@@ -2,10 +2,8 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { Star, Heart, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Product } from '@/lib/types';
 
 interface ProductCardProps {
   product: {
@@ -38,6 +36,16 @@ export default function ProductCard({
   const [isHovered, setIsHovered] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(!!product.isInWishlist);
 
+  const productName = typeof product.name === 'string' && product.name.trim() ? product.name : 'Product';
+  const primaryImageUrl = product.images?.[0]?.url || '/hero-bg.jpg';
+  const primaryImageAlt = product.images?.[0]?.alt || productName;
+
+  const priceNumber = typeof product.price === 'number' && Number.isFinite(product.price) ? product.price : 0;
+  const originalPriceNumber =
+    typeof product.originalPrice === 'number' && Number.isFinite(product.originalPrice)
+      ? product.originalPrice
+      : undefined;
+
   const handleWishlistClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -51,8 +59,8 @@ export default function ProductCard({
     onAddToCart?.();
   };
 
-  const discount = product.originalPrice 
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) 
+  const discount = originalPriceNumber !== undefined && originalPriceNumber > 0
+    ? Math.round(((originalPriceNumber - priceNumber) / originalPriceNumber) * 100)
     : 0;
 
   return (
@@ -65,8 +73,8 @@ export default function ProductCard({
       {/* Product Image */}
       <div className="relative aspect-square overflow-hidden bg-gray-50">
         <Image
-          src={product.images?.[0]?.url || '/hero-bg.jpg'}
-          alt={product.images?.[0]?.alt || product.name}
+          src={primaryImageUrl}
+          alt={primaryImageAlt}
           fill
           className="object-cover transition-transform duration-300 group-hover:scale-105"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
@@ -106,7 +114,7 @@ export default function ProductCard({
       {/* Product Info */}
       <div className="p-4 flex-1 flex flex-col">
         {/* Seller Info */}
-        {product.seller && (
+        {product.seller?.companyName && (
           <div className="flex items-center mb-2">
             <span className="text-sm text-gray-600">{product.seller.companyName}</span>
             {product.seller.verificationStatus === 'verified' && (
@@ -119,18 +127,18 @@ export default function ProductCard({
         
         {/* Product Name */}
         <h3 className="font-medium text-gray-900 mb-1 line-clamp-2 h-12">
-          {product.name}
+          {productName}
         </h3>
         
         {/* Price */}
         <div className="mt-2 mb-3">
           <div className="flex items-baseline">
             <span className="text-lg font-bold text-gray-900">
-              ₹{product.price.toLocaleString()}
+              ₹{priceNumber.toLocaleString()}
             </span>
-            {product.originalPrice && product.originalPrice > product.price && (
+            {originalPriceNumber !== undefined && originalPriceNumber > priceNumber && (
               <span className="ml-2 text-sm text-gray-500 line-through">
-                ₹{product.originalPrice.toLocaleString()}
+                ₹{originalPriceNumber.toLocaleString()}
               </span>
             )}
           </div>

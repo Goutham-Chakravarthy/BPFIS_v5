@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
 import { withSupplierAuth } from '@/lib/supplier-auth';
 import { useSupplierId } from './layout';
 
@@ -32,47 +31,71 @@ interface LowStockProduct {
   reorderThreshold: number;
 }
 
-interface TopProduct {
-  _id: string;
-  name: string;
-  quantity: number;
-  revenue: number;
-}
+type SupplierSettingsResponse = {
+  settings?: {
+    taxInclusive?: boolean;
+    taxRate?: number;
+  };
+};
+
+type DashboardStatsResponse = {
+  stats?: {
+    revenue?: { current?: number; previous?: number; growth?: number };
+    orders?: { current?: number; previous?: number; growth?: number };
+    activeProducts?: number;
+  };
+};
+
+type RecentOrdersResponse = {
+  orders?: RecentOrder[];
+};
+
+type LowStockResponse = {
+  products?: LowStockProduct[];
+};
 
 export default function SupplierDashboard() {
-  const [stats, setStats] = useState<any>(null);
-  const [recentOrders, setRecentOrders] = useState<any[]>([]);
-  const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
-  const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+  const [lowStockProducts, setLowStockProducts] = useState<LowStockProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [taxInclusive, setTaxInclusive] = useState<boolean>(true);
   const [taxRate, setTaxRate] = useState<number>(0.18);
-  const router = useRouter();
   const supplierId = useSupplierId();
 
   useEffect(() => {
-    if (supplierId) {
-      loadDashboardData();
-    }
+    if (!supplierId) return;
+
+    loadDashboardData({ silent: false });
+
+    const interval = setInterval(() => {
+      loadDashboardData({ silent: true });
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, [supplierId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async ({ silent }: { silent: boolean }) => {
     if (!supplierId) {
       console.error('No supplier ID available');
       return;
     }
 
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
+      setError('');
       
       // Load supplier settings for tax display
       try {
         const settingsRes = await fetch(`/api/supplier/${supplierId}/settings`, withSupplierAuth());
         if (settingsRes.ok) {
-          const data = await settingsRes.json();
+          const raw: unknown = await settingsRes.json();
+          const data = raw as SupplierSettingsResponse;
           if (data.settings) {
-            setTaxInclusive(!!data.settings.taxInclusive);
+            setTaxInclusive(Boolean(data.settings.taxInclusive));
             setTaxRate(typeof data.settings.taxRate === 'number' ? data.settings.taxRate : 0.18);
           }
         }
@@ -81,11 +104,10 @@ export default function SupplierDashboard() {
       }
 
       // Load dashboard data with supplierId
-      const [statsRes, ordersRes, lowStockRes, topProductsRes] = await Promise.all([
+      const [statsRes, ordersRes, lowStockRes] = await Promise.all([
         fetch(`/api/supplier/${supplierId}/dashboard/stats`, withSupplierAuth()),
         fetch(`/api/supplier/${supplierId}/dashboard/recent-orders`, withSupplierAuth()),
-        fetch(`/api/supplier/${supplierId}/dashboard/low-stock`, withSupplierAuth()),
-        fetch(`/api/supplier/${supplierId}/dashboard/top-products`, withSupplierAuth())
+        fetch(`/api/supplier/${supplierId}/dashboard/low-stock`, withSupplierAuth())
       ]);
 
         // Handle stats response with proper error handling
@@ -97,9 +119,20 @@ export default function SupplierDashboard() {
 
         // Handle stats response
         if (statsRes.ok) {
-          const statsData = await statsRes.json();
-          console.log('Dashboard stats loaded:', statsData);
-          setStats(statsData);
+          const raw: unknown = await statsRes.json();
+          const statsData = raw as DashboardStatsResponse;
+          const apiStats = statsData?.stats;
+          const totalRevenue = typeof apiStats?.revenue?.current === 'number' ? apiStats.revenue.current : 0;
+          const totalOrders = typeof apiStats?.orders?.current === 'number' ? apiStats.orders.current : 0;
+          const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+          setStats({
+            totalRevenue,
+            totalOrders,
+            activeProducts: typeof apiStats?.activeProducts === 'number' ? apiStats.activeProducts : 0,
+            avgOrderValue,
+            revenueGrowth: typeof apiStats?.revenue?.growth === 'number' ? apiStats.revenue.growth : 0,
+            orderGrowth: typeof apiStats?.orders?.growth === 'number' ? apiStats.orders.growth : 0
+          });
         } else {
           const errorData = await statsRes.json().catch(() => ({}));
           console.error('Dashboard stats error:', errorData);
@@ -115,26 +148,20 @@ export default function SupplierDashboard() {
 
         // Handle recent orders response
         if (ordersRes.ok) {
-          const ordersData = await ordersRes.json();
-          setRecentOrders(ordersData.orders || []);
+          const raw: unknown = await ordersRes.json();
+          const data = raw as RecentOrdersResponse;
+          setRecentOrders(Array.isArray(data.orders) ? data.orders : []);
         } else {
           setRecentOrders([]);
         }
 
         // Handle low stock response
         if (lowStockRes.ok) {
-          const lowStockData = await lowStockRes.json();
-          setLowStockProducts(lowStockData.products || []);
+          const raw: unknown = await lowStockRes.json();
+          const data = raw as LowStockResponse;
+          setLowStockProducts(Array.isArray(data.products) ? data.products : []);
         } else {
           setLowStockProducts([]);
-        }
-
-        // Handle top products response
-        if (topProductsRes.ok) {
-          const topProductsData = await topProductsRes.json();
-          setTopProducts(topProductsData.products || []);
-        } else {
-          setTopProducts([]);
         }
 
     } catch (error) {
@@ -151,10 +178,11 @@ export default function SupplierDashboard() {
       });
       setRecentOrders([]);
       setLowStockProducts([]);
-      setTopProducts([]);
       setError('Failed to load dashboard data');
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -199,28 +227,6 @@ export default function SupplierDashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Total Revenue */}
-        <div className="metric-card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="metric-label">Total Revenue</p>
-              <p className="metric-value">
-                ₹{stats?.totalRevenue ? applyTax(stats.totalRevenue).toLocaleString() : '0'}
-              </p>
-              {stats?.revenueGrowth && (
-                <p className={`metric-change ${stats.revenueGrowth > 0 ? 'positive' : 'negative'}`}>
-                  {stats.revenueGrowth > 0 ? '↑' : '↓'} {Math.abs(stats.revenueGrowth)}%
-                </p>
-              )}
-            </div>
-            <div className="p-3 bg-green-100 rounded-lg">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
         {/* Total Orders */}
         <div className="metric-card">
           <div className="flex items-center justify-between">
@@ -361,43 +367,6 @@ export default function SupplierDashboard() {
             )}
           </div>
         </div>
-      </div>
-
-      {/* Top Products */}
-      <div className="dashboard-card">
-        <div className="card-header">
-          <h2 className="card-title">Top Selling Products</h2>
-          <Link
-            href="/dashboard/supplier/products"
-            className="text-sm text-[var(--navy-blue)] hover:underline"
-          >
-            View all
-          </Link>
-        </div>
-
-        {topProducts.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-[var(--gray-600)]">No sales data available</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {topProducts.map((product, index) => (
-              <div key={product._id} className="p-4 border border-[var(--gray-300)] rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="w-6 h-6 bg-[var(--navy-blue)] text-white rounded-full flex items-center justify-center text-xs font-medium">
-                    {index + 1}
-                  </span>
-                  <span className="text-sm text-[#6b7280]">#{index + 1}</span>
-                </div>
-                <p className="font-medium text-[var(--navy-blue)] text-sm mb-1">{product.name}</p>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-[var(--gray-600)]">{product.quantity} sold</span>
-                  <span className="font-semibold text-[var(--navy-blue)]">₹{applyTax(product.revenue)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Quick Actions */}

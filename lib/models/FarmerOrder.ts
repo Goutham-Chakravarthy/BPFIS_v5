@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model, Types } from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export interface IFarmerOrderItem {
   productId: Types.ObjectId | string;
@@ -18,6 +18,11 @@ export interface IFarmerOrder extends Document {
   totalAmount: number;
   status: 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+  paymentDetails?: {
+    method?: 'card' | 'upi' | 'netbanking' | 'wallet';
+    transactionId?: string;
+    paidAt?: Date;
+  };
   shipping: {
     name: string;
     phone: string;
@@ -62,6 +67,11 @@ const FarmerOrderSchema = new Schema<IFarmerOrder>({
   totalAmount: { type: Number, required: true },
   status: { type: String, enum: ['confirmed', 'processing', 'shipped', 'delivered', 'cancelled'], default: 'confirmed' },
   paymentStatus: { type: String, enum: ['pending', 'paid', 'failed', 'refunded'], default: 'pending' },
+  paymentDetails: {
+    method: { type: String, enum: ['card', 'upi', 'netbanking', 'wallet'] },
+    transactionId: { type: String },
+    paidAt: { type: Date }
+  },
   shipping: {
     name: { type: String, required: true },
     phone: { type: String, required: true },

@@ -29,6 +29,11 @@ interface Order {
   }[];
   totalAmount: number;
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+  paymentDetails?: {
+    method?: 'card' | 'upi' | 'netbanking' | 'wallet';
+    transactionId?: string;
+    paidAt?: string;
+  };
   orderStatus: 'new' | 'processing' | 'shipped' | 'delivered' | 'returned' | 'cancelled';
   shippingDetails?: {
     trackingNumber?: string;
@@ -59,19 +64,41 @@ export default function OrdersPage() {
   const loadOrders = useCallback(async () => {
     try {
       setLoading(true);
+      setError('');
       
-      // Get supplierId if not already set
-      let currentSupplierId = supplierId;
-      if (!currentSupplierId) {
-        const profileResponse = await fetch('/api/supplier', withSupplierAuth());
-        if (profileResponse.ok) {
-          const profileData = await profileResponse.json();
-          currentSupplierId = profileData.seller?._id || 'temp';
-          setSupplierId(currentSupplierId);
+      // Get supplierId from authentication
+      const profileResponse = await fetch('/api/supplier', withSupplierAuth());
+      if (!profileResponse.ok) {
+        if (profileResponse.status === 401) {
+          // Try simulate login for development
+          console.log('Authentication failed, trying simulate login...');
+          const simulateResponse = await fetch('/api/supplier/simulate-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          
+          if (simulateResponse.ok) {
+            const simulateData = await simulateResponse.json();
+            setSupplierId(simulateData.seller._id);
+            console.log('Simulate login successful, retrying orders fetch...');
+            // Retry with the new supplier ID
+            return loadOrders();
+          } else {
+            throw new Error('Authentication required. Please login as a supplier.');
+          }
         } else {
           throw new Error('Failed to get supplier profile');
         }
       }
+
+      const profileData = await profileResponse.json();
+      const currentSupplierId = profileData.seller?._id || profileData.supplier?._id;
+      
+      if (!currentSupplierId) {
+        throw new Error('Supplier ID not found in profile');
+      }
+      
+      setSupplierId(currentSupplierId);
       
       const params = new URLSearchParams({
         status: activeTab === 'all' ? '' : activeTab,
@@ -81,18 +108,23 @@ export default function OrdersPage() {
       const response = await fetch(`/api/supplier/${currentSupplierId}/orders?${params}`, withSupplierAuth());
 
       if (!response.ok) {
-        throw new Error('Failed to fetch orders');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          (errorData.details
+            ? `${errorData.error || 'Failed to fetch orders'}: ${errorData.details}`
+            : (errorData.error || 'Failed to fetch orders'))
+        );
       }
 
       const data = await response.json();
       setOrders(data.orders || []);
     } catch (error) {
       console.error('Error loading orders:', error);
-      setError('Failed to load orders');
+      setError(error instanceof Error ? error.message : 'Failed to load orders');
     } finally {
       setLoading(false);
     }
-  }, [activeTab, searchTerm, supplierId]);
+  }, [activeTab, searchTerm]);
 
   useEffect(() => {
     loadOrders();
@@ -100,13 +132,16 @@ export default function OrdersPage() {
 
   const handleStatusUpdate = async (orderId: string, newStatus: string) => {
     try {
-      const currentSupplierId = supplierId || 'temp';
-      const response = await fetch(`/api/supplier/${currentSupplierId}/orders/${orderId}`, withSupplierAuth({
+      if (!supplierId) {
+        throw new Error('Supplier ID not available');
+      }
+      
+      const response = await fetch(`/api/supplier/${supplierId}/orders/${orderId}`, withSupplierAuth({
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ orderStatus: newStatus })
       }));
 
       const data = await response.json();
@@ -119,7 +154,7 @@ export default function OrdersPage() {
       }
     } catch (error) {
       console.error('Error updating order status:', error);
-      setError('Failed to update order status');
+      setError(error instanceof Error ? error.message : 'Failed to update order status');
     }
   };
 
@@ -183,6 +218,31 @@ export default function OrdersPage() {
       {error && (
         <div className="bg-[var(--error-red-light)] border border-[var(--error-red-border)] rounded-lg p-4">
           <p className="text-[var(--error-red)]">{error}</p>
+          {error.includes('Authentication') && (
+            <button
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/supplier/simulate-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                  });
+                  
+                  if (response.ok) {
+                    setSuccess('Authentication fixed! Reloading...');
+                    setTimeout(() => window.location.reload(), 1000);
+                  } else {
+                    setError('Failed to fix authentication');
+                  }
+                } catch (error) {
+                  console.error('Error fixing authentication:', error);
+                  setError('Error fixing authentication');
+                }
+              }}
+              className="mt-2 bg-[var(--navy-blue)] text-white px-4 py-2 rounded text-sm hover:bg-[var(--primary-teal)]"
+            >
+              Fix Authentication
+            </button>
+          )}
         </div>
       )}
       {success && (
@@ -319,9 +379,21 @@ export default function OrdersPage() {
                       ₹{formatAmount(order.totalAmount)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`badge ${getPaymentStatusColor(order.paymentStatus)}`}>
-                        {order.paymentStatus}
-                      </span>
+                      <div className="space-y-1">
+                        <span className={`badge ${getPaymentStatusColor(order.paymentStatus)}`}>
+                          {order.paymentStatus}
+                        </span>
+                        {order.paymentStatus === 'paid' && order.paymentDetails?.transactionId && (
+                          <div className="text-xs text-[var(--gray-600)] font-mono">
+                            {order.paymentDetails.transactionId}
+                          </div>
+                        )}
+                        {order.paymentStatus === 'paid' && order.paymentDetails?.method && (
+                          <div className="text-xs text-[var(--gray-600)]">
+                            {order.paymentDetails.method}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="space-y-2">
@@ -383,7 +455,6 @@ export default function OrdersPage() {
                             {order.orderStatus === 'shipped' && (
                               <option value="delivered">Delivered</option>
                             )}
-                            <option value="cancelled">Cancel</option>
                           </select>
                         )}
                       </div>

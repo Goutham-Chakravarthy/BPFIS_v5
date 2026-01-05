@@ -20,7 +20,7 @@ type CartItem = {
 export default function CheckoutPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { success, error, warning, info } = useToast()
+  const { success, error } = useToast()
   const initialUserId = searchParams.get('userId')
   const [uid, setUid] = useState<string | null>(initialUserId)
   const [items, setItems] = useState<CartItem[]>([])
@@ -97,9 +97,10 @@ export default function CheckoutPage() {
           phone: prof.phone || prev.phone,
           address: prof.address || prev.address,
         }))
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error('Profile load error:', e)
-        setProfileError(e?.message || 'Failed to load profile')
+        const message = e instanceof Error ? e.message : 'Failed to load profile'
+        setProfileError(message)
         setFarmer(null)
       } finally {
         setProfileLoading(false)
@@ -145,13 +146,14 @@ export default function CheckoutPage() {
         throw new Error(data?.error || 'Failed to create order')
       }
 
-      // Clear cart from database after successful order
-      await fetch(`/api/farmer/cart?userId=${uid}`, {
-        method: 'DELETE'
-      })
-      success('Order placed successfully!')
-      const base = '/dashboard/farmer/marketplace/products'
-      router.push(base)
+      const created = await res.json().catch(() => null)
+      const createdOrderId = created?.order?._id as string | undefined
+      if (!createdOrderId) {
+        throw new Error('Order created but orderId is missing')
+      }
+
+      success('Order created. Proceed to payment.')
+      router.push(`/dashboard/farmer/marketplace/payment?orderId=${encodeURIComponent(createdOrderId)}&userId=${encodeURIComponent(uid || '')}`)
     } catch (err) {
       console.error('Place order error:', err)
       error('Failed to place order. Please try again.')

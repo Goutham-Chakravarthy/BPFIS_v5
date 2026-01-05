@@ -1,51 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { Order } from '@/lib/models/supplier';
-import { FarmerOrder as FarmerOrderModel } from '@/lib/models/FarmerOrder';
+import { Order, Product } from '@/lib/models/supplier';
 import { requireAuth } from '@/lib/supplier-auth-middleware';
 import mongoose, { Types } from 'mongoose';
 
-interface SupplierOrder {
-  _id: string;
-  orderNumber: string;
-  customerName: string;
-  customerPhone: string;
-  totalAmount: number;
-  status: string;
-  paymentStatus: string;
-  items: any[];
-  createdAt: Date;
-  source: 'supplier' | 'farmer';
-}
+void Product;
 
-interface FarmerOrderItem {
-  sellerId: Types.ObjectId | string | null;
-  productId: Types.ObjectId | string | null;
-  quantity: number;
-  price: number;
-  [key: string]: any; // For any additional properties
-}
-
-interface FarmerOrder {
+interface SupplierOrderDocument {
   _id: Types.ObjectId;
   orderNumber: string;
-  items: FarmerOrderItem[];
-  status: string;
+  customer?: { name: string; phone: string };
+  totalAmount: number;
+  orderStatus: string;
+  paymentStatus?: string;
+  paymentDetails?: {
+    method?: string;
+    transactionId?: string;
+    paidAt?: Date;
+  };
+  items: unknown[];
+  shippingDetails?: unknown;
+  notes?: string;
   createdAt: Date;
-  [key: string]: any; // For any additional properties
+  updatedAt: Date;
 }
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ supplierId: string }> }
+  request: NextRequest
 ) {
   try {
     await connectDB();
     
-    // Authenticate supplier and validate supplierId
-    const resolvedParams = await params;
-    const auth = await requireAuth(request, { params: resolvedParams });
-    const sellerId = auth.sellerId;
+    // Authenticate supplier - don't validate route params for orders endpoint
+    const auth = await requireAuth(request);
+    const sellerId = auth.sellerId; // Use authenticated sellerId
     const sellerObjectId = new mongoose.Types.ObjectId(sellerId);
 
     const { searchParams } = new URL(request.url);
@@ -56,7 +44,7 @@ export async function GET(
     const skip = (page - 1) * limit;
 
     // Build query for supplier orders
-    const supplierQuery: any = { sellerId: sellerObjectId };
+    const supplierQuery: Record<string, unknown> = { sellerId: sellerObjectId };
     
     if (status && status !== 'all') {
       supplierQuery.orderStatus = status;
@@ -70,114 +58,17 @@ export async function GET(
       ];
     }
 
-    // Get supplier orders
-    const supplierOrders = await Order.find(supplierQuery)
+    const total = await Order.countDocuments(supplierQuery);
+
+    const orders = await Order.find(supplierQuery)
       .sort({ createdAt: -1 })
-      .populate('items.productId', 'name sku images')
-      .lean();
-
-    // Build query for farmer orders
-    const farmerQuery: any = {
-      'items.sellerId': { $in: [sellerId, sellerObjectId.toString()] }
-    };
-    
-    if (status && status !== 'all') {
-      // Map supplier order status to farmer order status
-      const statusMap: Record<string, string> = {
-        'new': 'confirmed',
-        'processing': 'processing',
-        'shipped': 'shipped',
-        'delivered': 'delivered',
-        'cancelled': 'cancelled'
-      };
-      farmerQuery.status = statusMap[status] || status;
-    }
-    
-    if (search) {
-      farmerQuery.$or = [
-        { orderNumber: { $regex: search, $options: 'i' } },
-        { 'shipping.name': { $regex: search, $options: 'i' } },
-        { 'shipping.phone': { $regex: search, $options: 'i' } }
-      ];
-    }
-
-    // Get farmer orders
-    console.log('Fetching farmer orders for sellerId:', sellerId);
-    const farmerOrders = await FarmerOrderModel.find(farmerQuery)
-      .sort({ createdAt: -1 })
-      .lean<FarmerOrder[]>();
-
-    console.log('Found farmer orders:', farmerOrders.length);
-    farmerOrders.forEach((order: FarmerOrder) => {
-      console.log(`Farmer order ${order.orderNumber}: items with sellerId:`, 
-        order.items.filter((item: FarmerOrderItem) => 
-          item.sellerId?.toString() === sellerId || 
-          item.sellerId?.toString() === sellerObjectId.toString()
-        ).length
-      );
-    });
-
-    // Combine and format orders
-    const allOrders: SupplierOrder[] = [
-      ...supplierOrders.map((order: any): SupplierOrder => ({
-        _id: order._id.toString(),
-        orderNumber: order.orderNumber,
-        customerName: order.customer?.name || 'Customer',
-        customerPhone: order.customer?.phone || '',
-        totalAmount: order.totalAmount,
-        status: order.orderStatus,
-        paymentStatus: order.paymentStatus || 'pending',
-        items: order.items,
-        createdAt: order.createdAt,
-        source: 'supplier'
-      })),
-      ...farmerOrders
-        .map((order: FarmerOrder): SupplierOrder | null => {
-          // Filter items for this supplier only
-          const supplierItems = order.items.filter((item: FarmerOrderItem) => 
-            item.sellerId?.toString() === sellerId || 
-            item.sellerId?.toString() === sellerObjectId.toString()
-          );
-          
-          if (supplierItems.length === 0) return null;
-          
-          const supplierTotal = supplierItems.reduce(
-            (sum: number, item: FarmerOrderItem) => sum + (item.price * item.quantity), 
-            0
-          );
-          
-          // Map farmer order status to supplier order status
-          const statusMap: Record<string, string> = {
-            'confirmed': 'new',
-            'processing': 'processing',
-            'shipped': 'shipped',
-            'delivered': 'delivered',
-            'cancelled': 'cancelled'
-          };
-          
-          return {
-            _id: order._id.toString(),
-            orderNumber: order.orderNumber,
-            customerName: (order as any).shipping?.name || 'Customer',
-            customerPhone: (order as any).shipping?.phone || '',
-            totalAmount: supplierTotal,
-            status: statusMap[order.status] || order.status,
-            paymentStatus: (order as any).paymentStatus || 'pending',
-            items: supplierItems,
-            createdAt: order.createdAt,
-            source: 'farmer'
-          };
-        })
-        .filter((order: SupplierOrder | null): order is SupplierOrder => order !== null)
-    ]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    // Apply pagination
-    const total = allOrders.length;
-    const paginatedOrders = allOrders.slice(skip, skip + limit);
+      .skip(skip)
+      .limit(limit)
+      .populate('items.productId', 'name sku images price')
+      .lean<SupplierOrderDocument[]>();
 
     return NextResponse.json({
-      orders: paginatedOrders,
+      orders,
       pagination: {
         page,
         limit,
@@ -186,9 +77,20 @@ export async function GET(
       }
     });
   } catch (error) {
-    console.error('Error fetching orders:', error);
+    if (error instanceof Error) {
+      if (error.message === 'Authentication required') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      if (error.message === 'Unauthorized access to this supplier resource') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+    console.error('[Orders API] Error fetching orders:', error);
+
+    const debug = process.env.NODE_ENV !== 'production';
+    const details = error instanceof Error ? error.message : undefined;
     return NextResponse.json(
-      { error: 'Failed to fetch orders' },
+      { error: 'Failed to fetch orders', details: debug ? details : undefined },
       { status: 500 }
     );
   }

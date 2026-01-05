@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { InventoryLog } from '@/lib/models/supplier';
+import { InventoryLog, Product } from '@/lib/models/supplier';
 import { requireAuth } from '@/lib/supplier-auth-middleware';
-import mongoose from 'mongoose';
+import { Types } from 'mongoose';
 
 // GET /api/supplier/[supplierId]/inventory/logs - Get inventory logs
 export async function GET(
@@ -24,15 +24,15 @@ export async function GET(
     const skip = (page - 1) * limit;
     
     // Get inventory logs
-    const logs = await InventoryLog.find({ sellerId: sellerId as any })
-      .populate('productId', 'name sku')
+    const logs = await InventoryLog.find({ sellerId: new Types.ObjectId(sellerId) })
+      .populate('productId', 'name sku', 'SupplierProduct')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
     
     // Get total count for pagination
-    const totalCount = await InventoryLog.countDocuments({ sellerId: sellerId as any });
+    const totalCount = await InventoryLog.countDocuments({ sellerId: new Types.ObjectId(sellerId) });
     
     return NextResponse.json({ 
       logs,
@@ -44,10 +44,10 @@ export async function GET(
       }
     });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching inventory logs:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch inventory logs' },
+      { error: error instanceof Error ? error.message : 'Failed to fetch inventory logs' },
       { status: 500 }
     );
   }
@@ -77,8 +77,7 @@ export async function POST(
     }
     
     // Get current product stock
-    const Product = (await import('@/lib/models/supplier')).Product;
-    const product = await Product.findOne({ _id: productId, sellerId: sellerId as any });
+    const product = await Product.findOne({ _id: productId, sellerId: new Types.ObjectId(sellerId) });
     
     if (!product) {
       return NextResponse.json(
@@ -103,8 +102,8 @@ export async function POST(
     
     // Create inventory log
     const log = await InventoryLog.create({
-      productId: productId as any,
-      sellerId: sellerId as any,
+      productId: new Types.ObjectId(productId),
+      sellerId: new Types.ObjectId(sellerId),
       change,
       reason,
       previousStock,
@@ -114,13 +113,13 @@ export async function POST(
     
     return NextResponse.json({ 
       message: 'Inventory log created successfully',
-      log: await InventoryLog.findById(log._id).populate('productId', 'name sku')
+      log: await InventoryLog.findById(log._id).populate('productId', 'name sku', 'SupplierProduct')
     });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating inventory log:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to create inventory log' },
+      { error: error instanceof Error ? error.message : 'Failed to create inventory log' },
       { status: 500 }
     );
   }

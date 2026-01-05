@@ -38,32 +38,39 @@ export async function authenticateSupplier(request: NextRequest): Promise<Authen
 
     // Prefer cookie-based auth (shared with farmer flow)
     const cookieToken = request.cookies.get(AUTH_COOKIE_NAME)?.value;
+    
     if (cookieToken) {
-      const payload = await verifyAuthToken(cookieToken);
-      if (debug) {
-        console.debug('[SupplierAuth] Cookie payload', {
-          context,
-          hasPayload: !!payload,
-          role: payload?.role,
-          sub: payload?.sub
-        });
-      }
-      if (payload && payload.role === 'supplier') {
-        const seller = await findActiveSellerByIdOrEmail(payload.sub, payload.email);
+      try {
+        const payload = await verifyAuthToken(cookieToken);
         if (debug) {
-          console.debug('[SupplierAuth] Cookie seller lookup', {
+          console.debug('[SupplierAuth] Cookie payload', {
             context,
-            found: !!seller,
-            by: seller ? 'cookieToken' : 'cookieToken-miss'
+            hasPayload: !!payload,
+            role: payload?.role,
+            sub: payload?.sub
           });
         }
-        if (seller) {
-          return {
-            sellerId: seller._id.toString(),
-            email: seller.email,
-            companyName: seller.companyName,
-            verificationStatus: seller.verificationStatus
-          };
+        if (payload && payload.role === 'supplier') {
+          const seller = await findActiveSellerByIdOrEmail(payload.sub, payload.email);
+          if (debug) {
+            console.debug('[SupplierAuth] Cookie seller lookup', {
+              context,
+              found: !!seller,
+              by: seller ? 'cookieToken' : 'cookieToken-miss'
+            });
+          }
+          if (seller) {
+            return {
+              sellerId: seller._id.toString(),
+              email: seller.email,
+              companyName: seller.companyName,
+              verificationStatus: seller.verificationStatus
+            };
+          }
+        }
+      } catch (tokenError) {
+        if (debug) {
+          console.error('[SupplierAuth] Token verification error:', tokenError);
         }
       }
     }
@@ -193,8 +200,11 @@ export async function requireAuth(
   // Verify supplierId in route matches authenticated user
   const supplierIdFromRoute = resolvedParams?.params?.supplierId;
   
-  // For document uploads, we need to verify the supplier ID in the URL matches the authenticated user
-  if (supplierIdFromRoute && supplierIdFromRoute !== 'temp') {
+  // For orders routes, allow access if user is authenticated (they can only see their own orders anyway)
+  const isOrdersRoute = request.nextUrl?.pathname?.includes('/orders');
+  
+  // For document uploads and other sensitive routes, we need to verify the supplier ID in the URL matches the authenticated user
+  if (supplierIdFromRoute && supplierIdFromRoute !== 'temp' && !isOrdersRoute) {
     if (supplierIdFromRoute !== auth.sellerId) {
       console.error(`Unauthorized access attempt: User ${auth.sellerId} tried to access ${supplierIdFromRoute}`);
       throw new Error('Unauthorized access to this supplier resource');
@@ -202,9 +212,9 @@ export async function requireAuth(
     return auth;
   }
 
-  // Skip supplierId validation for analytics routes
+  // Skip supplierId validation for analytics and orders routes
   const isAnalyticsRoute = request.nextUrl?.pathname?.includes('/analytics');
-  if (!isAnalyticsRoute && !supplierIdFromRoute) {
+  if (!isAnalyticsRoute && !isOrdersRoute && !supplierIdFromRoute) {
     console.error('Supplier ID is required for this route');
     throw new Error('Supplier ID required for this route');
   }
