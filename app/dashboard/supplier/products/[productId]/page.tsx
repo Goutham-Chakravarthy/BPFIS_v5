@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { withSupplierAuth } from '@/lib/supplier-auth';
 
@@ -28,6 +28,7 @@ interface Product {
 
 export default function EditProductPage() {
   const params = useParams();
+  const router = useRouter();
   const productId = params.productId as string;
   
   const [loading, setLoading] = useState(true);
@@ -35,6 +36,7 @@ export default function EditProductPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [product, setProduct] = useState<Product | null>(null);
+  const [supplierId, setSupplierId] = useState<string>('');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -66,14 +68,29 @@ export default function EditProductPage() {
 
   const loadProduct = useCallback(async () => {
     try {
-      const response = await fetch(`/api/supplier/products/${productId}`, withSupplierAuth());
+      // Get supplier ID first
+      let currentSupplierId = supplierId;
+      if (!currentSupplierId) {
+        const profileResponse = await fetch('/api/supplier', withSupplierAuth());
+        if (profileResponse.ok) {
+          const profileData = await profileResponse.json();
+          currentSupplierId = profileData.supplier?._id || profileData.seller?._id || '';
+          if (currentSupplierId) {
+            setSupplierId(currentSupplierId);
+          }
+        } else {
+          throw new Error('Failed to get supplier ID');
+        }
+      }
+
+      const response = await fetch(`/api/supplier/${currentSupplierId}/products/${productId}`, withSupplierAuth());
 
       if (!response.ok) {
         throw new Error('Failed to load product');
       }
 
       const data = await response.json();
-      const productData = data.product;
+      const productData = data;
       
       setProduct(productData);
       setFormData({
@@ -99,7 +116,7 @@ export default function EditProductPage() {
     } finally {
       setLoading(false);
     }
-  }, [productId]);
+  }, [productId, supplierId]);
 
   useEffect(() => {
     loadProduct();
@@ -132,6 +149,18 @@ export default function EditProductPage() {
     setSuccess('');
 
     try {
+      // Get supplier ID if not already available
+      let currentSupplierId = supplierId;
+      if (!currentSupplierId) {
+        const profileResponse = await fetch('/api/supplier', withSupplierAuth());
+        if (profileResponse.ok) {
+          const profileData = await profileResponse.json();
+          currentSupplierId = profileData.supplier?._id || profileData.seller?._id || '';
+        } else {
+          throw new Error('Failed to get supplier ID');
+        }
+      }
+
       const payload = {
         ...formData,
         price: parseFloat(formData.price),
@@ -147,7 +176,7 @@ export default function EditProductPage() {
         }
       };
 
-      const response = await fetch(`/api/supplier/products/${productId}`, withSupplierAuth({
+      const response = await fetch(`/api/supplier/${currentSupplierId}/products/${productId}`, withSupplierAuth({
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -159,7 +188,10 @@ export default function EditProductPage() {
 
       if (response.ok) {
         setSuccess('Product updated successfully!');
-        await loadProduct(); // Reload product data
+        // Redirect to products page after successful save
+        setTimeout(() => {
+          router.push('/dashboard/supplier/products');
+        }, 1500); // Wait 1.5 seconds to show success message
       } else {
         setError(data.error || 'Failed to update product');
       }

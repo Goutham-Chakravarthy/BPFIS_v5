@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import { useToast } from '@/components/Toast';
 import ToastContainer from '@/components/Toast';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 
 interface OrderItem {
   name: string;
   quantity: number;
   price: number;
   image?: string;
+  productId?: string;
 }
 
 interface Order {
@@ -22,6 +24,11 @@ interface Order {
   status: 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   createdAt: string;
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+  paymentDetails?: {
+    method?: 'card' | 'upi' | 'netbanking' | 'wallet';
+    transactionId?: string;
+    paidAt?: string;
+  };
   shipping: {
     name: string;
     phone: string;
@@ -48,9 +55,8 @@ interface Order {
 
 export default function OrderDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const { success, error, warning, info } = useToast();
+  const { success, error } = useToast();
   const userId = searchParams.get('userId');
   const orderId = params.id as string;
   
@@ -61,9 +67,6 @@ export default function OrderDetailPage() {
   
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [cancelReason, setCancelReason] = useState('');
-  const [cancelling, setCancelling] = useState(false);
   
   // Review state management
   const [reviewData, setReviewData] = useState({
@@ -72,15 +75,8 @@ export default function OrderDetailPage() {
     comment: ''
   });
   const [submittingReview, setSubmittingReview] = useState(false);
-  const [showReviewModal, setShowReviewModal] = useState(false);
 
-  useEffect(() => {
-    if (orderId) {
-      loadOrder();
-    }
-  }, [orderId]);
-
-  const loadOrder = async () => {
+  const loadOrder = useCallback(async () => {
     try {
       if (!userId) {
         console.error('No userId provided');
@@ -104,32 +100,13 @@ export default function OrderDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderId, userId]);
 
-  const handleCancelOrder = async () => {
-    try {
-      setCancelling(true);
-      const res = await fetch(`/api/farmer/orders/${orderId}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: cancelReason })
-      });
-
-      if (res.ok) {
-        success('Order cancelled successfully');
-        setShowCancelModal(false);
-        setCancelReason('');
-        loadOrder(); // Reload order to show updated status
-      } else {
-        error('Failed to cancel order');
-      }
-    } catch (err) {
-      console.error('Cancel order error:', err);
-      error('Failed to cancel order');
-    } finally {
-      setCancelling(false);
+  useEffect(() => {
+    if (orderId) {
+      loadOrder();
     }
-  };
+  }, [orderId, loadOrder]);
 
   const handleSubmitReview = () => {
     handleReviewSubmit();
@@ -142,7 +119,7 @@ export default function OrderDetailPage() {
       const reviewPayload = {
         userId,
         orderId,
-        productId: (order?.items[0] as any)?.productId || '',
+        productId: order?.items[0]?.productId || '',
         rating: rating || reviewData.rating,
         title: reviewData.title,
         comment: reviewData.comment,
@@ -157,7 +134,7 @@ export default function OrderDetailPage() {
       });
 
       if (res.ok) {
-        const data = await res.json();
+        await res.json().catch(() => null);
         success('Review submitted successfully!');
         
         // Reset review form
@@ -175,12 +152,6 @@ export default function OrderDetailPage() {
     } finally {
       setSubmittingReview(false);
     }
-  };
-
-  const canCancelOrder = () => {
-    if (!order) return false;
-    const cancellableStatuses = ['pending', 'confirmed', 'processing'];
-    return cancellableStatuses.includes(order.status);
   };
 
   const getStatusColor = (status: string) => {
@@ -231,7 +202,7 @@ export default function OrderDetailPage() {
         <ToastContainer />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <h2 className="text-2xl font-semibold text-[#1f3b2c]">Order not found</h2>
-          <p className="text-[#6b7280] mt-2">The order you're looking for doesn't exist.</p>
+          <p className="text-[#6b7280] mt-2">The order you&apos;re looking for doesn&apos;t exist.</p>
           <Link
             href={buildUrl('/dashboard/farmer/marketplace/orders')}
             className="inline-block mt-6 bg-[#1f3b2c] text-white px-6 py-3 rounded-lg hover:bg-[#2d4f3c]"
@@ -348,7 +319,15 @@ export default function OrderDetailPage() {
                 <div key={index} className="flex items-center space-x-4">
                   <div className="w-16 h-16 bg-gray-200 rounded flex items-center justify-center">
                     {item.image ? (
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded" />
+                      <div className="relative w-full h-full">
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          fill
+                          sizes="64px"
+                          className="object-cover rounded"
+                        />
+                      </div>
                     ) : (
                       <span className="text-lg text-[#6b7280]">Item</span>
                     )}
@@ -424,7 +403,7 @@ export default function OrderDetailPage() {
 
                   <div className="flex items-center justify-between">
                     <button
-                      onClick={() => setShowReviewModal(false)}
+                      onClick={() => setReviewData({ rating: 0, title: '', comment: '' })}
                       className="px-4 py-2 border border-[#e2d4b7] text-[#6b7280] rounded-lg hover:bg-gray-50"
                     >
                       Cancel
@@ -544,22 +523,20 @@ export default function OrderDetailPage() {
 
             <div className="mb-4">
               <h3 className="font-medium text-[#1f3b2c] mb-2">Payment Method</h3>
-              <p className="text-[#6b7280]">
-                Cash on Delivery (COD)
-              </p>
+              <div className="text-[#6b7280] space-y-1">
+                <p>
+                  {order.paymentDetails?.method || (order.paymentStatus === 'paid' ? 'Card' : '—')}
+                </p>
+                {order.paymentStatus === 'paid' && order.paymentDetails?.transactionId && (
+                  <p className="text-xs font-mono">
+                    {order.paymentDetails.transactionId}
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Action Buttons */}
             <div className="space-y-3">
-              {canCancelOrder() && (
-                <button
-                  onClick={() => setShowCancelModal(true)}
-                  className="w-full bg-red-600 text-white py-2 rounded-lg font-medium hover:bg-red-700"
-                >
-                  Cancel Order
-                </button>
-              )}
-              
               {order.status === 'delivered' && (
                 <button className="w-full bg-[#1f3b2c] text-white py-2 rounded-lg font-medium hover:bg-[#2d4f3c]">
                   Reorder Items
@@ -584,47 +561,6 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
-      {/* Cancel Order Modal */}
-      {showCancelModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">Cancel Order</h3>
-            <p className="text-gray-600 mb-4">
-              Are you sure you want to cancel this order? This action cannot be undone.
-            </p>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">Reason for cancellation</label>
-              <textarea
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                rows={3}
-                placeholder="Please tell us why you're cancelling this order"
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={handleCancelOrder}
-                disabled={cancelling}
-                className="flex-1 bg-red-600 text-white py-2 rounded-lg font-medium hover:bg-red-700 disabled:opacity-50"
-              >
-                {cancelling ? 'Cancelling...' : 'Cancel Order'}
-              </button>
-              <button
-                onClick={() => {
-                  setShowCancelModal(false);
-                  setCancelReason('');
-                }}
-                className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-50"
-              >
-                Keep Order
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
     </div>
   );
