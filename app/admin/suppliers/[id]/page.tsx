@@ -4,6 +4,7 @@ import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { adminFetch } from '@/lib/admin-client-auth';
 
 interface Supplier {
   _id: string;
@@ -290,9 +291,7 @@ function SupplierDetailPage({ params }: Props) {
         const resolvedParams = await params;
         
         // Fetch supplier details
-        const supplierResponse = await fetch(`/api/admin/suppliers/${resolvedParams.id}`, {
-          credentials: 'include'
-        });
+        const supplierResponse = await adminFetch(`/api/admin/suppliers/${resolvedParams.id}`);
         if (!supplierResponse.ok) {
           throw new Error('Failed to fetch supplier details');
         }
@@ -300,21 +299,14 @@ function SupplierDetailPage({ params }: Props) {
         setSupplier(supplierData.data || supplierData);
 
         // Fetch documents
-        const documentsResponse = await fetch(`/api/admin/suppliers/${resolvedParams.id}/documents`, {
-          credentials: 'include'
-        });
+        const documentsResponse = await adminFetch(`/api/admin/suppliers/${resolvedParams.id}/documents`);
         if (documentsResponse.ok) {
           const documentsData = await documentsResponse.json();
           setDocuments(documentsData);
         }
 
         // Fetch products
-        const productsResponse = await fetch(`/api/admin/suppliers/${resolvedParams.id}/products`, {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
+        const productsResponse = await adminFetch(`/api/admin/suppliers/${resolvedParams.id}/products`);
         if (productsResponse.ok) {
           const productsData = await productsResponse.json();
           setProducts(productsData.data || productsData);

@@ -1,29 +1,54 @@
 import { execSync } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 
-const TMP = "/tmp/rtc_pos.txt";
+function isHttpUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value);
+}
+
+async function downloadToTempFile(url: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Failed to download PDF (${res.status} ${res.statusText})`);
+  }
+
+  const buffer = Buffer.from(await res.arrayBuffer());
+  const tmpPdf = path.join(os.tmpdir(), `bpfis_pdf_${Date.now()}_${Math.random().toString(16).slice(2)}.pdf`);
+  fs.writeFileSync(tmpPdf, buffer);
+  return tmpPdf;
+}
 
 // STEP 1 — Extract raw text from PDF using pdftotext
-function extractRaw(pdfPath: string): string {
+async function extractRaw(pdfPath: string): Promise<string> {
   if (!pdfPath || typeof pdfPath !== 'string') {
     throw new Error('Invalid PDF path provided');
   }
-  
+
+  let localPdfPath: string | null = null;
+  let tmpTxtPath: string | null = null;
+
   try {
-    execSync(`pdftotext -layout -nopgbrk "${pdfPath}" "${TMP}"`);
-    const text = fs.readFileSync(TMP, "utf8")
+    localPdfPath = isHttpUrl(pdfPath) ? await downloadToTempFile(pdfPath) : pdfPath;
+    tmpTxtPath = path.join(os.tmpdir(), `bpfis_pdftotext_${Date.now()}_${Math.random().toString(16).slice(2)}.txt`);
+
+    execSync(`pdftotext -layout -nopgbrk "${localPdfPath}" "${tmpTxtPath}"`);
+    const text = fs.readFileSync(tmpTxtPath, "utf8")
       .replace(/\u00A0/g, " ")
       .replace(/[ ]{2,}/g, " ")
       .trim();
-    
-    // Clean up temp file
-    try { fs.unlinkSync(TMP); } catch {}
-    
+
     return text;
   } catch (error) {
     console.error('pdftotext extraction failed:', error);
     return '';
+  } finally {
+    if (tmpTxtPath) {
+      try { fs.unlinkSync(tmpTxtPath); } catch {}
+    }
+    if (localPdfPath && localPdfPath !== pdfPath) {
+      try { fs.unlinkSync(localPdfPath); } catch {}
+    }
   }
 }
 
@@ -312,7 +337,7 @@ export async function extractRTCData(pdfPath: string) {
   
   try {
     console.log(`Extracting data from: ${pdfPath}`);
-    const raw = extractRaw(pdfPath);
+    const raw = await extractRaw(pdfPath);
     if (!raw) {
       throw new Error('Failed to extract text from PDF');
     }
@@ -338,7 +363,7 @@ export async function extractAadhaarData(pdfPath: string) {
   
   try {
     console.log(`Extracting Aadhaar data from: ${pdfPath}`);
-    const raw = extractRaw(pdfPath);
+    const raw = await extractRaw(pdfPath);
     const result = parseAadhaar(raw);
     console.log('Parsed Aadhaar data:', result);
     return result;
@@ -471,7 +496,10 @@ function parseAadhaar(text: string) {
   // English Address
   // -------------------------
   let addrEng = null;
-  const engStart = lines.findIndex(l => l.startsWith("C/O") || l.startsWith("S/O"));
+  const engStart = lines.findIndex(l =>
+    /\b(?:C\/O|S\/O|W\/O|H\/O)\s*:/i.test(l) ||
+    /\bAddress\s*:/i.test(l)
+  );
 
   if (engStart !== -1) {
     let block = [];
@@ -479,11 +507,17 @@ function parseAadhaar(text: string) {
     for (let i = engStart; i < lines.length; i++) {
       const line = lines[i];
 
+      // If line contains Address: prefix, keep only the part after it
+      const normalizedLine = /\bAddress\s*:/i.test(line)
+        ? line.replace(/.*\bAddress\s*:\s*/i, '')
+        : line;
+
       // stop conditions for English address
       if (line.match(/\b\d{4} \d{4} \d{4}\b/)) break;
-      if (/Signature|Digitally|Verified|Enrol|Mobile:/i.test(line)) break;
+      if (/Signature|Digitally|Verified|Enrol|Mobile:|VID\s*:|DOB|Details as on/i.test(line)) break;
 
-      block.push(clean(line));
+      const cleaned = clean(normalizedLine);
+      if (cleaned) block.push(cleaned);
     }
     addrEng = clean(block.join(", "));
   }
@@ -525,6 +559,6 @@ function parseAadhaar(text: string) {
     dob,
     gender,
     mobile: mobileNumber,
-    address: addrEng,
+    address: addrEng || addrKan,
   };
 }

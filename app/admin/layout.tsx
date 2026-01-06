@@ -26,6 +26,7 @@ export default function AdminLayout({
       await fetch('/api/auth/admin/logout', {
         method: 'POST',
       });
+      // Cookie will be cleared by the server
       router.push('/admin-login');
     } catch (error) {
       console.error('Logout error:', error);
@@ -73,7 +74,7 @@ export default function AdminLayout({
                   >
                     Suppliers
                   </Link>
-                  <Link
+                  {/* <Link
                     href="/admin/products"
                     className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
                       pathname.startsWith('/admin/products')
@@ -82,7 +83,7 @@ export default function AdminLayout({
                     }`}
                   >
                     Products
-                  </Link>
+                  </Link> */}
                 </div>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:items-center">

@@ -4,7 +4,7 @@ import { SignJWT } from 'jose';
 // Hardcoded admin credentials (in production, use environment variables)
 const ADMIN_CREDENTIALS = {
   email: 'admin@bpfis.com',
-  password: 'admin@123', // In production, this should be hashed and compared
+  password: 'admin123', // In production, this should be hashed and compared
 };
 
 export async function POST(request: Request) {

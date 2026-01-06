@@ -31,6 +31,8 @@ export default function AdminLogin() {
         throw new Error(data.error || 'Login failed');
       }
 
+      // Token is set as HTTP-only cookie, so we don't need to store it manually
+      // The withAdminAuth function will read it from the cookie
       router.push('/admin/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');

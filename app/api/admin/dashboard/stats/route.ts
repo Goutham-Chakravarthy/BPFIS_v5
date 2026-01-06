@@ -24,13 +24,51 @@ export async function GET() {
       totalFarmers,
       totalSuppliers,
       totalProducts,
-      totalSupplierOrders
+      totalSupplierOrders,
+      recentFarmers,
+      recentSuppliers,
+      recentOrders
     ] = await Promise.all([
       User.countDocuments({ role: 'farmer' }).catch(() => 0),
       User.countDocuments({ role: 'supplier' }).catch(() => 0),
       Product.countDocuments({ status: 'active' }).catch(() => 0),
-      Order.countDocuments().catch(() => 0)
+      Order.countDocuments().catch(() => 0),
+      User.find({ role: 'farmer' }).sort({ createdAt: -1 }).limit(5).catch(() => []),
+      User.find({ role: 'supplier' }).sort({ createdAt: -1 }).limit(5).catch(() => []),
+      Order.find().sort({ createdAt: -1 }).limit(5).catch(() => [])
     ]);
+
+    // Create recent activities from farmers, suppliers, and orders
+    const recentActivities = [
+      ...recentFarmers.map(farmer => ({
+        id: farmer._id,
+        type: 'farmer_registration',
+        title: 'New Farmer Registered',
+        description: `${farmer.name || farmer.email} joined the platform`,
+        timestamp: farmer.createdAt,
+        user: farmer.name || farmer.email,
+        status: 'completed'
+      })),
+      ...recentSuppliers.map(supplier => ({
+        id: supplier._id,
+        type: 'supplier_registration',
+        title: 'New Supplier Registered',
+        description: `${supplier.name || supplier.email} joined the platform`,
+        timestamp: supplier.createdAt,
+        user: supplier.name || supplier.email,
+        status: 'completed'
+      })),
+      ...recentOrders.map(order => ({
+        id: order._id,
+        type: 'supplier_order',
+        title: `Order #${order._id.toString().substring(0, 8)}`,
+        description: `New order placed`,
+        timestamp: order.createdAt,
+        user: order.customerName || 'Customer',
+        status: order.status || 'pending',
+        amount: order.totalAmount || 0
+      }))
+    ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 10);
 
     // Return response with basic data
     const stats = {
@@ -40,10 +78,15 @@ export async function GET() {
       totalMarketplaceOrders: 0, // Will add later
       totalSupplierOrders,
       totalRevenue: 0,
-      recentActivities: [],
+      recentActivities,
       topProducts: [],
-      recentOrders: [],
-      recentActivity: []
+      recentOrders: recentOrders.map(order => ({
+        id: order._id,
+        customer: order.customerName || 'Customer',
+        amount: order.totalAmount || 0,
+        status: order.status || 'pending'
+      })),
+      recentActivity: recentActivities
     };
 
     return NextResponse.json(stats);

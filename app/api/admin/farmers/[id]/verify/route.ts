@@ -1,58 +1,40 @@
-import { NextResponse } from 'next/server';
-import { verifyAdminToken } from '@/lib/admin-auth';
+import { NextResponse, NextRequest } from 'next/server';
+import { withAdminAuth } from '@/lib/withAdminAuth';
 import { connectDB } from '@/lib/db';
-import User from '@/models/User';
+import { User } from '@/lib/models/User';
 
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params;
-    // Verify admin token
-    const token = request.headers.get('cookie')?.split('; ')
-      .find(row => row.startsWith('admin-token='))
-      ?.split('=')[1];
+  return withAdminAuth(async (request: NextRequest) => {
+    try {
+      const { id } = await params;
+      await connectDB();
+      
+      const user = await User.findByIdAndUpdate(
+        id,
+        { isVerified: true },
+        { new: true }
+      ).select('-password');
 
-    if (!token) {
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Farmer not found' },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: user,
+      });
+    } catch (error) {
+      console.error('Error verifying farmer:', error);
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: 'Internal server error' },
+        { status: 500 }
       );
     }
-
-    const payload = await verifyAdminToken(token);
-    if (!payload) {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
-        { status: 401 }
-      );
-    }
-
-    await connectDB();
-    
-    const user = await User.findByIdAndUpdate(
-      id,
-      { isVerified: true },
-      { new: true }
-    ).select('-password');
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Farmer not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: user,
-    });
-  } catch (error) {
-    console.error('Error verifying farmer:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
+  })(request, { params });
 }
