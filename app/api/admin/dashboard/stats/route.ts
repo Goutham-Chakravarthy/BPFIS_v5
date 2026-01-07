@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth.config';
 import { connectDB } from '@/lib/db';
-import User from '@/models/User';
+import { User } from '@/lib/models/User';
 import { Product, Order } from '@/lib/models/supplier';
 
 export async function GET() {
@@ -44,18 +44,18 @@ export async function GET() {
         id: farmer._id,
         type: 'farmer_registration',
         title: 'New Farmer Registered',
-        description: `${farmer.name || farmer.email} joined the platform`,
+        description: `${farmer.fullName || farmer.email} joined the platform`,
         timestamp: farmer.createdAt,
-        user: farmer.name || farmer.email,
+        user: farmer.fullName || farmer.email,
         status: 'completed'
       })),
       ...recentSuppliers.map(supplier => ({
         id: supplier._id,
         type: 'supplier_registration',
         title: 'New Supplier Registered',
-        description: `${supplier.name || supplier.email} joined the platform`,
+        description: `${supplier.companyName || supplier.email} joined the platform`,
         timestamp: supplier.createdAt,
-        user: supplier.name || supplier.email,
+        user: supplier.companyName || supplier.email,
         status: 'completed'
       })),
       ...recentOrders.map(order => ({
