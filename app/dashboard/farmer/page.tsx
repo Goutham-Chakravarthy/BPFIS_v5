@@ -1,7 +1,10 @@
 'use client';
 
+'use client';
+
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useFarmerActivities } from '@/lib/hooks/useFarmerActivities';
 
 export default function FarmerOverviewPage() {
   const searchParams = useSearchParams();
@@ -13,6 +16,9 @@ export default function FarmerOverviewPage() {
     monthlyRevenue: '₹45,250',
     pendingAgreements: 2
   });
+
+  // Fetch recent activities for the current user
+  const { activities: recentActivities, loading, error, refresh } = useFarmerActivities(userId);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f0fdf4] to-[#dcfce7]">
@@ -125,29 +131,60 @@ export default function FarmerOverviewPage() {
               </svg>
               Recent Activity
             </h3>
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 p-3 bg-[#f9fafb] rounded-lg">
-                <div className="w-2 h-2 bg-[#166534] rounded-full mt-2"></div>
-                <div>
-                  <p className="text-sm font-medium text-[#1f3b2c]">Land Agreement Signed</p>
-                  <p className="text-xs text-[#6b7280]">2 hours ago</p>
-                </div>
+            {loading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-[#f9fafb] rounded-lg animate-pulse">
+                    <div className="w-2 h-2 bg-gray-300 rounded-full mt-2"></div>
+                    <div className="space-y-2 flex-1">
+                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-start gap-3 p-3 bg-[#f9fafb] rounded-lg">
-                <div className="w-2 h-2 bg-[#d97706] rounded-full mt-2"></div>
-                <div>
-                  <p className="text-sm font-medium text-[#1f3b2c]">New Market Price Update</p>
-                  <p className="text-xs text-[#6b7280]">5 hours ago</p>
-                </div>
+            ) : error ? (
+              <div className="text-center py-4 text-red-500">
+                <p>Failed to load activities</p>
+                <button 
+                  onClick={refresh}
+                  className="mt-2 text-sm text-blue-600 hover:underline"
+                >
+                  Try again
+                </button>
               </div>
-              <div className="flex items-start gap-3 p-3 bg-[#f9fafb] rounded-lg">
-                <div className="w-2 h-2 bg-[#1e40af] rounded-full mt-2"></div>
-                <div>
-                  <p className="text-sm font-medium text-[#1f3b2c]">Document Verified</p>
-                  <p className="text-xs text-[#6b7280]">1 day ago</p>
-                </div>
+            ) : recentActivities.length > 0 ? (
+              <div className="space-y-3">
+                {recentActivities.map((activity) => {
+                  const statusColor = activity.status === 'success' 
+                    ? 'bg-[#166534]' 
+                    : activity.status === 'failed' 
+                      ? 'bg-[#dc2626]' 
+                      : 'bg-[#d97706]';
+                      
+                  return (
+                    <div key={activity.id} className="flex items-start gap-3 p-3 bg-[#f9fafb] rounded-lg hover:bg-[#f3f4f6] transition-colors">
+                      <div className={`w-2 h-2 ${statusColor} rounded-full mt-2`}></div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[#1f3b2c] truncate">
+                          {activity.title}
+                        </p>
+                        <p className="text-xs text-[#6b7280] truncate">
+                          {activity.description}
+                        </p>
+                        <p className="text-xs text-[#6b7280] mt-1">
+                          {new Date(activity.timestamp).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                <p>No recent activities found</p>
+              </div>
+            )}
           </div>
 
           <div className="bg-gradient-to-br from-[#fef3c7] to-[#fde68a] rounded-xl p-6 shadow-lg border border-[#fbbf24]">

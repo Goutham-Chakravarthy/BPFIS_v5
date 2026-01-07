@@ -6,6 +6,9 @@ import { getUserFromRequest } from '../../../../lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 import Document from '../../../../lib/models/Document';
 import { uploadFile } from '@/lib/cloudinary';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -48,6 +51,8 @@ export async function POST(request: Request) {
     // Process RTC file
     if (rtcFile) {
       const rtcBuffer = Buffer.from(await rtcFile.arrayBuffer());
+      const rtcTmpPath = path.join(os.tmpdir(), `kyc_rtc_${uuidv4()}.pdf`);
+      fs.writeFileSync(rtcTmpPath, rtcBuffer);
       
       // Upload to Cloudinary
       const uploadResult = await uploadFile(rtcBuffer, 'kyc/rtc');
@@ -69,8 +74,10 @@ export async function POST(request: Request) {
       });
 
       // Process document using simple extraction
-      const rtcResult = await processDocument(rtcDoc._id.toString(), userId);
+      const rtcResult = await processDocument(rtcDoc._id.toString(), userId, rtcTmpPath);
       rtcText = rtcResult.text || '';
+
+      try { fs.unlinkSync(rtcTmpPath); } catch {}
       
       // Extract and map RTC data
       if (rtcResult.status === 'completed' && rtcResult.fields) {
@@ -86,7 +93,7 @@ export async function POST(request: Request) {
         
         extractedData.land.landParcelIdentity = rtcData.land_identification?.survey_number || null;
         extractedData.land.totalCultivableArea = rtcData.land_details?.total_extent || null;
-        extractedData.land.mutationTraceability = rtcData.land_identification?.hissa_number || null;
+        extractedData.land.mutationTraceability = rtcData.ownership?.mutation_no || rtcData.land_identification?.hissa_number || null;
         extractedData.land.soilProperties = rtcData.land_details?.soil_type || null;
         // Ownership verification will be set based on name matching
         extractedData.land.ownershipVerified = false; // Will be updated after name verification
@@ -99,6 +106,8 @@ export async function POST(request: Request) {
     // Process Aadhaar file
     if (aadharFile) {
       const aadharBuffer = Buffer.from(await aadharFile.arrayBuffer());
+      const aadharTmpPath = path.join(os.tmpdir(), `kyc_aadhaar_${uuidv4()}.pdf`);
+      fs.writeFileSync(aadharTmpPath, aadharBuffer);
       
       // Upload to Cloudinary
       const uploadResult = await uploadFile(aadharBuffer, 'kyc/aadhaar');
@@ -120,8 +129,10 @@ export async function POST(request: Request) {
       });
 
       // Process document using simple extraction
-      const aadharResult = await processDocument(aadharDoc._id.toString(), userId);
+      const aadharResult = await processDocument(aadharDoc._id.toString(), userId, aadharTmpPath);
       aadharText = aadharResult.text || '';
+
+      try { fs.unlinkSync(aadharTmpPath); } catch {}
       
       // Map extracted data to farmer profile format
       if (aadharResult.status === 'completed' && aadharResult.fields) {

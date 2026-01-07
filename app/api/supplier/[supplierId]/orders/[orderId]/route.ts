@@ -1,9 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { Order } from '@/lib/models/supplier';
+import { Order, Product } from '@/lib/models/supplier';
 import { FarmerOrder } from '@/lib/models/FarmerOrder';
 import { requireAuth } from '@/lib/supplier-auth-middleware';
 import mongoose from 'mongoose';
+
+void Product;
+
+interface UpdateData {
+  updatedAt: Date;
+  orderStatus?: string;
+  paymentStatus?: string;
+  shippingDetails?: {
+    trackingNumber?: string;
+    carrier?: string;
+    estimatedDelivery?: Date;
+    actualDelivery?: Date;
+  };
+  notes?: string;
+}
 
 export async function GET(
   request: NextRequest,
@@ -19,56 +34,9 @@ export async function GET(
     const sellerId = auth.sellerId;
     const sellerObjectId = new mongoose.Types.ObjectId(sellerId);
 
-    // Try to find in supplier orders first
-    let order = await Order.findOne({ _id: orderId, sellerId: sellerObjectId as any })
+    const order = await Order.findOne({ _id: orderId, sellerId: sellerObjectId })
       .populate('items.productId', 'name sku images price')
       .lean();
-
-    // If not found in supplier orders, check farmer orders
-    if (!order) {
-      const farmerOrder = await FarmerOrder.findById(orderId).lean();
-      
-      if (farmerOrder) {
-        // Check if this farmer order contains items from this supplier
-        const supplierItems = farmerOrder.items.filter((item: any) => 
-          item.sellerId?.toString() === sellerId || 
-          item.sellerId?.toString() === sellerObjectId.toString()
-        );
-        
-        if (supplierItems.length > 0) {
-          // Format farmer order to match supplier order structure
-          const statusMap: Record<string, string> = {
-            'confirmed': 'new',
-            'processing': 'processing',
-            'shipped': 'shipped',
-            'delivered': 'delivered',
-            'cancelled': 'cancelled'
-          };
-          
-          order = {
-            _id: farmerOrder._id,
-            orderNumber: farmerOrder.orderNumber,
-            customer: {
-              name: farmerOrder.shipping?.name || 'Customer',
-              phone: farmerOrder.shipping?.phone || '',
-              address: {
-                street: farmerOrder.shipping?.address || '',
-                city: farmerOrder.shipping?.city || '',
-                state: farmerOrder.shipping?.state || '',
-                pincode: farmerOrder.shipping?.pincode || '',
-                country: 'India'
-              }
-            },
-            items: supplierItems as any,
-            totalAmount: supplierItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0),
-            orderStatus: (statusMap[farmerOrder.status] || farmerOrder.status) as any,
-            paymentStatus: farmerOrder.paymentStatus || 'pending',
-            createdAt: farmerOrder.createdAt,
-            updatedAt: farmerOrder.updatedAt
-          } as any;
-        }
-      }
-    }
 
     if (!order) {
       return NextResponse.json(
@@ -79,9 +47,20 @@ export async function GET(
 
     return NextResponse.json({ order });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'Authentication required') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      if (error.message === 'Unauthorized access to this supplier resource') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
     console.error('Error fetching order:', error);
+
+    const debug = process.env.NODE_ENV !== 'production';
+    const details = error instanceof Error ? error.message : undefined;
     return NextResponse.json(
-      { error: 'Failed to fetch order' },
+      { error: 'Failed to fetch order', details: debug ? details : undefined },
       { status: 500 }
     );
   }
@@ -102,140 +81,111 @@ export async function PATCH(
     const sellerObjectId = new mongoose.Types.ObjectId(sellerId);
 
     const body = await request.json();
-    
-    // Try to update supplier order first
-    let order = await Order.findOne({ _id: orderId, sellerId: sellerObjectId as any });
-    
-    if (order) {
-      // Update supplier order
-      order = await Order.findOneAndUpdate(
-        { _id: orderId, sellerId: sellerObjectId as any },
-        { 
-          ...body,
-          updatedAt: new Date()
-        },
-        { new: true, runValidators: true }
-      ).populate('items.productId', 'name sku images price');
-      
-      return NextResponse.json({ order });
+
+    const updateData: UpdateData = {
+      updatedAt: new Date()
+    };
+
+    if (typeof body.orderStatus === 'string') {
+      updateData.orderStatus = body.orderStatus;
     }
-    
-    // If not a supplier order, try to update farmer order
-    const farmerOrder = await FarmerOrder.findById(orderId);
-    
-    if (farmerOrder) {
-      // Check if this farmer order contains items from this supplier
-      const supplierItems = farmerOrder.items.filter((item: any) => 
-        item.sellerId?.toString() === sellerId || 
-        item.sellerId?.toString() === sellerObjectId.toString()
+
+    if (typeof body.paymentStatus === 'string') {
+      updateData.paymentStatus = body.paymentStatus;
+    }
+
+    if (body.shippingDetails && typeof body.shippingDetails === 'object') {
+      updateData.shippingDetails = {
+        ...body.shippingDetails,
+        estimatedDelivery: body.shippingDetails.estimatedDelivery ? new Date(body.shippingDetails.estimatedDelivery) : undefined,
+        actualDelivery: body.shippingDetails.actualDelivery ? new Date(body.shippingDetails.actualDelivery) : undefined
+      };
+    }
+
+    if (typeof body.notes === 'string') {
+      updateData.notes = body.notes;
+    }
+
+    const order = await Order.findOneAndUpdate(
+      { _id: orderId, sellerId: sellerObjectId },
+      updateData,
+      { new: true, runValidators: true }
+    ).populate('items.productId', 'name sku images price');
+
+    if (!order) {
+      return NextResponse.json(
+        { error: 'Order not found' },
+        { status: 404 }
       );
-      
-      if (supplierItems.length === 0) {
-        return NextResponse.json(
-          { error: 'Order not found' },
-          { status: 404 }
-        );
-      }
-      
-      // Map supplier order status to farmer order status
-      const statusMap: Record<string, string> = {
-        'new': 'confirmed',
-        'processing': 'processing',
-        'shipped': 'shipped',
-        'delivered': 'delivered',
-        'cancelled': 'cancelled'
-      };
-      
-      // Update farmer order status
-      const updateData: any = {
-        updatedAt: new Date()
-      };
-      
-      if (body.orderStatus) {
-        updateData.status = statusMap[body.orderStatus] || body.orderStatus;
-        
-        // Add to status history
-        updateData.$push = {
-          statusHistory: {
-            status: updateData.status,
-            timestamp: new Date(),
-            note: `Status updated by supplier: ${body.orderStatus}`
-          }
+    }
+
+    // Sync supplier-visible status into the customer order (FarmerOrder) when it exists.
+    // This keeps customer and supplier views connected and consistent.
+    try {
+      const parentOrderNumber = typeof order.orderNumber === 'string' ? order.orderNumber.split('-')[0] : '';
+      if (parentOrderNumber) {
+        const statusMap: Record<string, string> = {
+          new: 'confirmed',
+          processing: 'processing',
+          shipped: 'shipped',
+          delivered: 'delivered',
+          cancelled: 'cancelled'
         };
-        
-        // Update tracking details if status is shipped
-        if (body.orderStatus === 'shipped') {
-          updateData.tracking = {
-            ...farmerOrder.tracking,
-            shippedAt: new Date(),
-            carrier: body.shippingDetails?.carrier || farmerOrder.tracking?.carrier,
-            trackingNumber: body.shippingDetails?.trackingNumber || farmerOrder.tracking?.trackingNumber
+
+        const farmerUpdate: Record<string, unknown> = {};
+
+        if (updateData.orderStatus) {
+          farmerUpdate.status = statusMap[updateData.orderStatus] || updateData.orderStatus;
+        }
+
+        if (updateData.paymentStatus) {
+          farmerUpdate.paymentStatus = updateData.paymentStatus;
+        }
+
+        if (updateData.shippingDetails) {
+          farmerUpdate.tracking = {
+            trackingNumber: updateData.shippingDetails.trackingNumber,
+            carrier: updateData.shippingDetails.carrier,
+            estimatedDelivery: updateData.shippingDetails.estimatedDelivery,
+            actualDelivery: updateData.shippingDetails.actualDelivery,
+            shippedAt: updateData.orderStatus === 'shipped' ? new Date() : undefined,
+            deliveredAt: updateData.orderStatus === 'delivered' ? new Date() : undefined,
+            currentLocation:
+              updateData.orderStatus === 'delivered'
+                ? 'Delivered'
+                : updateData.orderStatus === 'shipped'
+                  ? 'In Transit'
+                  : 'Processing Center'
           };
         }
-        
-        // Update tracking details if status is delivered
-        if (body.orderStatus === 'delivered') {
-          updateData.tracking = {
-            ...farmerOrder.tracking,
-            deliveredAt: new Date()
-          };
+
+        if (Object.keys(farmerUpdate).length > 0) {
+          await FarmerOrder.updateOne(
+            { orderNumber: parentOrderNumber },
+            { $set: farmerUpdate }
+          );
         }
       }
-      
-      if (body.paymentStatus) {
-        updateData.paymentStatus = body.paymentStatus;
-      }
-      
-      const updatedFarmerOrder = await FarmerOrder.findByIdAndUpdate(
-        orderId,
-        updateData,
-        { new: true }
-      );
-      
-      // Format response to match supplier order structure
-      const statusMapReverse: Record<string, string> = {
-        'confirmed': 'new',
-        'processing': 'processing',
-        'shipped': 'shipped',
-        'delivered': 'delivered',
-        'cancelled': 'cancelled'
-      };
-      
-      const formattedOrder = {
-        _id: updatedFarmerOrder!._id,
-        orderNumber: updatedFarmerOrder!.orderNumber,
-        customer: {
-          name: updatedFarmerOrder!.shipping?.name || 'Customer',
-          phone: updatedFarmerOrder!.shipping?.phone || '',
-          address: {
-            street: updatedFarmerOrder!.shipping?.address || '',
-            city: updatedFarmerOrder!.shipping?.city || '',
-            state: updatedFarmerOrder!.shipping?.state || '',
-            pincode: updatedFarmerOrder!.shipping?.pincode || '',
-            country: 'India'
-          }
-        },
-        items: supplierItems as any,
-        totalAmount: supplierItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0),
-        orderStatus: (statusMapReverse[updatedFarmerOrder!.status] || updatedFarmerOrder!.status) as any,
-        paymentStatus: updatedFarmerOrder!.paymentStatus || 'pending',
-        createdAt: updatedFarmerOrder!.createdAt,
-        updatedAt: updatedFarmerOrder!.updatedAt,
-        source: 'farmer' as any
-      };
-      
-      return NextResponse.json({ order: formattedOrder });
+    } catch (syncError) {
+      console.error('Failed to sync supplier order update to FarmerOrder:', syncError);
     }
-    
-    return NextResponse.json(
-      { error: 'Order not found' },
-      { status: 404 }
-    );
-    
+
+    return NextResponse.json({ order });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'Authentication required') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      if (error.message === 'Unauthorized access to this supplier resource') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
     console.error('Error updating order:', error);
+
+    const debug = process.env.NODE_ENV !== 'production';
+    const details = error instanceof Error ? error.message : undefined;
     return NextResponse.json(
-      { error: 'Failed to update order' },
+      { error: 'Failed to update order', details: debug ? details : undefined },
       { status: 500 }
     );
   }
@@ -256,7 +206,7 @@ export async function DELETE(
     const sellerObjectId = new mongoose.Types.ObjectId(sellerId);
 
     // Find and delete order
-    const order = await Order.findOneAndDelete({ _id: orderId, sellerId: sellerObjectId as any });
+    const order = await Order.findOneAndDelete({ _id: orderId, sellerId: sellerObjectId });
 
     if (!order) {
       return NextResponse.json(
@@ -267,9 +217,20 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Order deleted successfully' });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'Authentication required') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      if (error.message === 'Unauthorized access to this supplier resource') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
     console.error('Error deleting order:', error);
+
+    const debug = process.env.NODE_ENV !== 'production';
+    const details = error instanceof Error ? error.message : undefined;
     return NextResponse.json(
-      { error: 'Failed to delete order' },
+      { error: 'Failed to delete order', details: debug ? details : undefined },
       { status: 500 }
     );
   }

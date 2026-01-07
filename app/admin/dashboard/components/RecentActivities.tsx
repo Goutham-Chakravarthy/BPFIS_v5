@@ -43,6 +43,10 @@ const getActivityIcon = (type: string, status: string) => {
       return <FiPackage className={`h-5 w-5 ${statusColor}`} />;
     case 'farmer_order':
       return <FiShoppingCart className={`h-5 w-5 ${statusColor}`} />;
+    case 'farmer_registration':
+      return <FiUserCheck className={`h-5 w-5 ${statusColor}`} />;
+    case 'supplier_registration':
+      return <FiUserCheck className={`h-5 w-5 ${statusColor}`} />;
     case 'document_update':
       return <FiFileText className={`h-5 w-5 ${statusColor}`} />;
     case 'payment':

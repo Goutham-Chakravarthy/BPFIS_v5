@@ -3,14 +3,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Filter, X, Check, ChevronDown, CheckCircle, Download, MoreVertical } from 'lucide-react';
+import { adminFetch } from '@/lib/admin-client-auth';
 
 interface Farmer {
   _id: string;
-  name: string;
   email: string;
   isVerified: boolean;
   phone?: string;
-  address?: string;
   createdAt: string;
 }
 
@@ -60,7 +59,7 @@ export default function FarmersPage() {
         sortBy: filters.sortBy || 'newest',
       });
 
-      const response = await fetch(`/api/admin/farmers?${params}`);
+      const response = await adminFetch(`/api/admin/farmers?${params}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch farmers');
@@ -120,7 +119,7 @@ export default function FarmersPage() {
 
   const handleVerify = async (farmerId: string) => {
     try {
-      const response = await fetch(`/api/admin/farmers/${farmerId}/verify`, {
+      const response = await adminFetch(`/api/admin/farmers/${farmerId}/verify`, {
         method: 'PUT',
       });
 
@@ -212,12 +211,10 @@ export default function FarmersPage() {
     const selectedData = farmers.filter(farmer => selectedFarmers.has(farmer._id));
     
     // Create CSV content
-    const headers = ['Name', 'Email', 'Phone', 'Address', 'Status', 'Joined At'];
+    const headers = ['Email', 'Phone', 'Status', 'Joined At'];
     const rows = selectedData.map(farmer => ({
-      name: `"${farmer.name}"`,
       email: `"${farmer.email}"`,
       phone: `"${farmer.phone || ''}"`,
-      address: `"${farmer.address || ''}"`,
       status: farmer.isVerified ? 'Verified' : 'Pending',
       joinedAt: new Date(farmer.createdAt).toLocaleDateString()
     }));
@@ -351,112 +348,6 @@ export default function FarmersPage() {
       <div className="sm:flex sm:items-center sm:justify-between">
         <div className="sm:flex-auto">
           <h1 className="text-2xl font-semibold text-gray-900">Farmers</h1>
-          <p className="mt-2 text-sm text-gray-700">
-            {pagination.total} {pagination.total === 1 ? 'farmer' : 'farmers'} found
-            {selectedFarmers.size > 0 && ` • ${selectedFarmers.size} selected`}
-          </p>
-        </div>
-        <div className="mt-4 flex space-x-3 sm:mt-0">
-          <button
-            type="button"
-            onClick={exportToCSV}
-            disabled={farmers.length === 0}
-            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
-          >
-            <Download className="-ml-1 mr-2 h-4 w-4" />
-            Export All
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowFilters(!showFilters)}
-            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          >
-            <Filter className="-ml-1 mr-2 h-4 w-4" />
-            {showFilters ? 'Hide Filters' : 'Filters'}
-            {hasActiveFilters && (
-              <span className="ml-2 inline-flex items-center justify-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800">
-                {Object.entries(filters).filter(([_, value]) => 
-                  value && (typeof value !== 'string' || (value !== 'all' && value !== 'newest'))
-                ).length}
-              </span>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Search and Filters */}
-      <div className={`mt-6 space-y-4 ${showFilters ? 'block' : 'hidden'}`}>
-        <div className="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4">
-          <div className="flex-1">
-            <label htmlFor="search" className="sr-only">Search</label>
-            <div className="relative rounded-md shadow-sm">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                name="search"
-                id="search"
-                className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
-                placeholder="Search by name or email..."
-                value={filters.search || ''}
-                onChange={handleSearch}
-              />
-              {filters.search && (
-                <button
-                  type="button"
-                  onClick={() => handleFilterChange('search', '')}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                >
-                  <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-                </button>
-              )}
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <div>
-              <label htmlFor="status" className="block text-sm font-medium text-gray-700">Status</label>
-              <select
-                id="status"
-                name="status"
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-              >
-                <option value="all">All Status</option>
-                <option value="verified">Verified</option>
-                <option value="pending">Pending</option>
-              </select>
-            </div>
-            
-            <div>
-              <label htmlFor="sortBy" className="block text-sm font-medium text-gray-700">Sort By</label>
-              <select
-                id="sortBy"
-                name="sortBy"
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                value={filters.sortBy}
-                onChange={(e) => handleFilterChange('sortBy', e.target.value)}
-              >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="name">Name (A-Z)</option>
-              </select>
-            </div>
-            
-            {hasActiveFilters && (
-              <div className="flex items-end">
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  Clear All
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
@@ -471,13 +362,22 @@ export default function FarmersPage() {
                     <th scope="col" className="relative w-12 px-6 sm:w-16 sm:px-8">
                       <input
                         type="checkbox"
-                        className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 sm:left-6"
                         checked={selectAll}
                         onChange={handleSelectAll}
+                        className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 sm:left-6"
                       />
                     </th>
-                    <th scope="col" className="min-w-12 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                      Name
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Email
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Phone
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Status
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Joined At
                     </th>
                     <th className="relative py-3.5 pl-3 pr-4 sm:pr-6">
                       <span className="sr-only">Actions</span>
@@ -487,13 +387,13 @@ export default function FarmersPage() {
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {loading ? (
                     <tr>
-                      <td colSpan={6} className="px-3 py-4 text-center text-sm text-gray-500">
+                      <td colSpan={5} className="px-3 py-4 text-center text-sm text-gray-500">
                         Loading...
                       </td>
                     </tr>
                   ) : farmers.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-3 py-4 text-center text-sm text-gray-500">
+                      <td colSpan={5} className="px-3 py-4 text-center text-sm text-gray-500">
                         No farmers found
                       </td>
                     </tr>
@@ -515,41 +415,12 @@ export default function FarmersPage() {
                           />
                         </td>
                         <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                          <div className="flex items-center">
-                            <div className="h-10 w-10 flex-shrink-0">
-                              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-                                {farmer.name?.charAt(0)?.toUpperCase() || 'F'}
-                              </div>
-                            </div>
-                            <div className="ml-4">
-                              <div className="font-medium text-gray-900">
-                                {farmer.name}
-                                {selectedFarmers.has(farmer._id) && (
-                                  <span className="ml-2 inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
-                                    Selected
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-gray-500">{farmer.phone}</div>
-                            </div>
-                          </div>
+                          {farmer.email}
                         </td>
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                          <div className="flex items-center">
-                            <div className="h-10 w-10 flex-shrink-0">
-                              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-                                {farmer.name?.charAt(0)?.toUpperCase() || 'F'}
-                              </div>
-                            </div>
-                            <div className="ml-4">
-                              <div className="font-medium text-gray-900">
-                                {farmer.name}
-                              </div>
-                              <div className="text-gray-500">{farmer.email}</div>
-                            </div>
-                          </div>
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
+                          {farmer.phone || '-'}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
                           <span
                             className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
                               farmer.isVerified
@@ -560,11 +431,8 @@ export default function FarmersPage() {
                             {farmer.isVerified ? 'Verified' : 'Pending'}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          <div>{new Date(farmer.createdAt).toLocaleDateString()}</div>
-                          <div className="text-gray-400 text-xs">
-                            {new Date(farmer.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                          </div>
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
+                          {new Date(farmer.createdAt).toLocaleDateString()}
                         </td>
                         <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                           <div className="flex space-x-2">
@@ -597,28 +465,22 @@ export default function FarmersPage() {
                 Showing <span className="font-medium">
                   {(pagination.page - 1) * pagination.limit + 1}
                 </span> to{' '}
-                <span className="font-medium">
-                  {Math.min(pagination.page * pagination.limit, pagination.total)}
-                </span>{' '}
-                of <span className="font-medium">{pagination.total}</span> results
+                <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of <span className="font-medium">{pagination.total}</span> results
               </div>
               <div className="flex space-x-2">
                 <button
-                  onClick={() => 
-                    setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))
-                  }
-                  disabled={pagination.page === 1}
+                  onClick={() => {
+                    setPagination(prev => ({ ...prev, page: Math.max(prev.page - 1, 1) }))
+                  }}
+                  disabled={pagination.page <= 1}
                   className="rounded-md border border-gray-300 bg-white px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                 >
                   Previous
                 </button>
                 <button
-                  onClick={() => 
-                    setPagination(prev => ({ 
-                      ...prev, 
-                      page: Math.min(prev.page + 1, pagination.totalPages) 
-                    }))
-                  }
+                  onClick={() => {
+                    setPagination(prev => ({ ...prev, page: Math.min(prev.page + 1, pagination.totalPages) }))
+                  }}
                   disabled={pagination.page >= pagination.totalPages}
                   className="rounded-md border border-gray-300 bg-white px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                 >

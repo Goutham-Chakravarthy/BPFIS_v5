@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Product } from '@/lib/models';
-import mongoose from 'mongoose';
 
 // Ensure models are registered
 import '@/lib/models';
@@ -11,8 +10,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
-    const minPrice = searchParams.get('minPrice') || '0';
-    const maxPrice = searchParams.get('maxPrice') || '10000';
+    const minPriceParam = searchParams.get('minPrice');
+    const maxPriceParam = searchParams.get('maxPrice');
     const sortBy = searchParams.get('sortBy') || 'relevance';
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
@@ -20,7 +19,8 @@ export async function GET(request: Request) {
     await connectDB();
 
     // Build query
-    const query: any = { status: 'active' };
+    // By default, show everything that is not inactive so newly-added products are visible.
+    const query: Record<string, unknown> = { status: { $ne: 'inactive' } };
     
     if (search) {
       query.$or = [
@@ -35,13 +35,17 @@ export async function GET(request: Request) {
       query.category = category;
     }
 
-    query.price = {
-      $gte: parseFloat(minPrice),
-      $lte: parseFloat(maxPrice)
-    };
+    const minPrice = typeof minPriceParam === 'string' ? parseFloat(minPriceParam) : undefined;
+    const maxPrice = typeof maxPriceParam === 'string' ? parseFloat(maxPriceParam) : undefined;
+    if (typeof minPrice === 'number' && !Number.isNaN(minPrice)) {
+      query.price = { ...((query.price as Record<string, unknown>) || {}), $gte: minPrice };
+    }
+    if (typeof maxPrice === 'number' && !Number.isNaN(maxPrice)) {
+      query.price = { ...((query.price as Record<string, unknown>) || {}), $lte: maxPrice };
+    }
 
     // Build sort
-    let sort: any = {};
+    let sort: Record<string, 1 | -1> = {};
     switch (sortBy) {
       case 'price-low':
         sort = { price: 1 };
@@ -61,8 +65,7 @@ export async function GET(request: Request) {
 
     // Fetch products with seller information
     const products = await Product.find({
-      ...query,
-      status: 'active'
+      ...query
     })
       .populate({
         path: 'sellerId',
@@ -75,31 +78,39 @@ export async function GET(request: Request) {
       .lean();
 
     // Format products for marketplace
-    const formattedProducts = products.map((product: any) => ({
-      _id: product._id,
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      images: Array.isArray(product.images) ? product.images.map((img: any) => ({
-        url: img.url || '',
-        alt: img.alt || product.name
-      })) : [],
-      category: product.category,
-      seller: {
-        _id: product.sellerId?._id || product.sellerId,
-        companyName: (product.sellerId as any)?.companyName || 'Unknown Seller'
-      },
-      stock: product.stockQuantity || 0,
-      rating: 0, // Not available in the supplier model
-      reviews: 0, // Not available in the supplier model
-      createdAt: product.createdAt,
-      tags: Array.isArray(product.tags) ? product.tags : [],
-      status: product.status || 'draft'
-    }));
+    const formattedProducts = products.map((productUnknown: unknown) => {
+      const product = productUnknown as Record<string, unknown>;
+      const images = Array.isArray(product.images)
+        ? (product.images as Array<Record<string, unknown>>).map((img) => ({
+            url: (img.url as string) || '',
+            alt: (img.alt as string) || (product.name as string) || 'Product'
+          }))
+        : [];
+
+      const sellerDoc = product.sellerId as Record<string, unknown> | undefined;
+
+      return {
+        _id: product._id,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        images,
+        category: product.category,
+        seller: {
+          _id: sellerDoc?._id || product.sellerId,
+          companyName: (sellerDoc?.companyName as string) || 'Unknown Seller'
+        },
+        stock: (product.stockQuantity as number) || 0,
+        rating: 0,
+        reviews: 0,
+        createdAt: product.createdAt,
+        tags: Array.isArray(product.tags) ? product.tags : [],
+        status: (product.status as string) || 'draft'
+      };
+    });
 
     const total = await Product.countDocuments({
-      ...query,
-      status: 'active'
+      ...query
     });
 
     return NextResponse.json({

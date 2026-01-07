@@ -47,16 +47,20 @@ export async function POST(request: Request) {
     console.log('⏰ OTP Expires at:', otpExpiresAt);
 
     const user = await User.create({
+      name: companyName, // Use companyName as the user's name
       role: 'supplier',
       companyName,
       email: businessEmail,
       businessEmail,
       upiId,
-      passwordHash,
+      passwordHash, // Use passwordHash to match User model
       emailVerified: false,
       phoneVerified: false,
       emailOtp,
       otpExpiresAt,
+      // Supplier verification fields
+      documentsUploaded: false, // Must upload documents first
+      verificationStatus: 'pending', // Admin verification required
     });
 
     console.log('✅ User created successfully:', {

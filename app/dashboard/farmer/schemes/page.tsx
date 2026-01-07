@@ -56,7 +56,19 @@ export default function GovernmentSchemesPage() {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [profileName, setProfileName] = useState('');
   const [saveProfile, setSaveProfile] = useState(false);
-  const [selectedState, setSelectedState] = useState<string>('');
+  const [selectedState, setSelectedState] = useState<string>('Karnataka');
+  const [stateFieldKey, setStateFieldKey] = useState<string | null>(null);
+
+  const shouldHideField = (field: SchemeField): boolean => {
+    const cleanedLabel = String(field.label || '').replace(/\s*\(auto-filled\)\s*/gi, '').trim();
+    const cleanedKey = String(field.key || '').trim();
+    return (
+      /\bscheme\s*name\b/i.test(cleanedLabel) ||
+      /\bscheme\s*link\b/i.test(cleanedLabel) ||
+      /\bstate\b/i.test(cleanedLabel) ||
+      /(^|_)state(_|$)/i.test(cleanedKey)
+    );
+  };
 
   // Helper function to build URLs with userId (currently unused but kept for future use)
   // const buildUrl = (path: string) => {
@@ -69,11 +81,26 @@ export default function GovernmentSchemesPage() {
       const data = await res.json();
       
       if (data.headers) {
-        setFields(data.headers);
+        const headerFields = data.headers as SchemeField[];
+        const stateField = headerFields.find((h) => {
+          const cleanedLabel = String(h.label || '').replace(/\s*\(auto-filled\)\s*/gi, '').trim();
+          return /\bstate\b/i.test(cleanedLabel) || /(^|_)state(_|$)/i.test(String(h.key || ''));
+        });
+
+        setStateFieldKey(stateField?.key || null);
+
+        const visibleFields = headerFields.filter((h) => !shouldHideField(h));
+        setFields(visibleFields);
         const initial: Record<string, string> = {};
-        data.headers.forEach((h: SchemeField) => {
+        visibleFields.forEach((h: SchemeField) => {
           initial[h.key] = "";
         });
+
+        // Force State = Karnataka (field is hidden from UI)
+        if (stateField?.key) {
+          initial[stateField.key] = 'Karnataka';
+        }
+
         setForm(initial);
       }
     } catch (err: unknown) {
@@ -109,7 +136,18 @@ export default function GovernmentSchemesPage() {
   const loadProfile = async (profileId: string) => {
     const profile = profiles.find(p => p._id === profileId);
     if (profile) {
-      setForm(profile.profileData);
+      // Strip hidden fields (Scheme Name / Scheme Link) from saved profile data
+      const cleaned: Record<string, string> = {};
+      fields.forEach((f) => {
+        cleaned[f.key] = profile.profileData?.[f.key] ?? '';
+      });
+
+      // Force State = Karnataka (field is hidden from UI)
+      if (stateFieldKey) {
+        cleaned[stateFieldKey] = 'Karnataka';
+      }
+
+      setForm(cleaned);
       setSelectedProfile(profileId);
       setResults(null);
     }
@@ -120,11 +158,10 @@ export default function GovernmentSchemesPage() {
     
     // Handle state selection to update districts
     if (/state/i.test(key)) {
-      setSelectedState(v);
-      // Clear district when state changes
-      const districtField = fields.find(f => /district/i.test(f.key));
-      if (districtField) {
-        setForm(prev => ({ ...prev, [districtField.key]: '' }));
+      // State field is hidden and fixed to Karnataka.
+      setSelectedState('Karnataka');
+      if (stateFieldKey) {
+        setForm(prev => ({ ...prev, [stateFieldKey]: 'Karnataka' }));
       }
     }
   };
@@ -134,9 +171,15 @@ export default function GovernmentSchemesPage() {
     setLoading(true);
     setError(null);
     
+    // Ensure State is always Karnataka (even though field is hidden)
+    const farmerInput = { ...form };
+    if (stateFieldKey) {
+      farmerInput[stateFieldKey] = 'Karnataka';
+    }
+
     // Build payload for new API
     const payload = {
-      farmerInput: form,
+      farmerInput,
       saveProfile: saveProfile && profileName.trim() !== '',
       profileName: profileName.trim(),
       userId: userId
@@ -181,7 +224,12 @@ export default function GovernmentSchemesPage() {
     setSelectedProfile('');
     setSaveProfile(false);
     setProfileName('');
-    setSelectedState('');
+    setSelectedState('Karnataka');
+
+    // Force State = Karnataka (field is hidden from UI)
+    if (stateFieldKey) {
+      setForm(prev => ({ ...prev, [stateFieldKey]: 'Karnataka' }));
+    }
   };
 
   const saveAsNewProfile = () => {
@@ -331,9 +379,15 @@ export default function GovernmentSchemesPage() {
         <form onSubmit={submit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {fields.map(f => {
-              const isNameOrLink = /name/i.test(f.label) || /link|url|website/i.test(f.label);
-              const numericHint = /age|income|land|size|hectare|amount|area|year|percentage|min|max|years|no_of|number/i.test(f.label);
-              const isSelectField = /caste|gender|state|district|type|disaster/i.test(f.label) && !/income.*category|category.*income/i.test(f.label);
+              const displayLabel = f.label.replace(/\s*\(auto-filled\)\s*/gi, '').trim();
+              const isNameOrLink = /name/i.test(displayLabel) || /link|url|website/i.test(displayLabel);
+              const numericHint = /age|income|land|size|hectare|amount|area|year|percentage|min|max|years|no_of|number/i.test(displayLabel);
+              const isSelectField = /caste|gender|state|district|type|disaster/i.test(displayLabel) && !/income.*category|category.*income/i.test(displayLabel);
+              const isStateField = /\bstate\b/i.test(displayLabel) || /(^|_)state(_|$)/i.test(String(f.key || ''));
+
+              if (isStateField) {
+                return null;
+              }
               
               return (
                 <div key={f.key} className="space-y-2">
@@ -341,8 +395,7 @@ export default function GovernmentSchemesPage() {
                     htmlFor={`field-${f.key}`}
                     className="block text-sm font-medium text-[#1f3b2c]"
                   >
-                    {f.label}
-                    {isNameOrLink && <span className="text-gray-600 ml-1">(auto-filled)</span>}
+                    {displayLabel}
                   </label>
                   
                   {isSelectField ? (
@@ -354,7 +407,7 @@ export default function GovernmentSchemesPage() {
                       className="w-full px-3 py-2 border border-[#e2d4b7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] focus:border-transparent disabled:bg-gray-100 disabled:text-gray-700 text-gray-700"
                     >
                       <option value="">Select option</option>
-                      {/caste|category/i.test(f.label) && (
+                      {/caste|category/i.test(displayLabel) && (
                         <>
                           <option value="General">General</option>
                           <option value="OBC">OBC</option>
@@ -363,45 +416,13 @@ export default function GovernmentSchemesPage() {
                           <option value="EWS">EWS</option>
                         </>
                       )}
-                      {/gender/i.test(f.label) && (
+                      {/gender/i.test(displayLabel) && (
                         <>
                           <option value="Male">Male</option>
                           <option value="Female">Female</option>
                         </>
                       )}
-                      {/state/i.test(f.label) && (
-                        <>
-                          <option value="Andhra Pradesh">Andhra Pradesh</option>
-                          <option value="Arunachal Pradesh">Arunachal Pradesh</option>
-                          <option value="Assam">Assam</option>
-                          <option value="Bihar">Bihar</option>
-                          <option value="Chhattisgarh">Chhattisgarh</option>
-                          <option value="Goa">Goa</option>
-                          <option value="Gujarat">Gujarat</option>
-                          <option value="Haryana">Haryana</option>
-                          <option value="Himachal Pradesh">Himachal Pradesh</option>
-                          <option value="Jharkhand">Jharkhand</option>
-                          <option value="Karnataka">Karnataka</option>
-                          <option value="Kerala">Kerala</option>
-                          <option value="Madhya Pradesh">Madhya Pradesh</option>
-                          <option value="Maharashtra">Maharashtra</option>
-                          <option value="Manipur">Manipur</option>
-                          <option value="Meghalaya">Meghalaya</option>
-                          <option value="Mizoram">Mizoram</option>
-                          <option value="Nagaland">Nagaland</option>
-                          <option value="Odisha">Odisha</option>
-                          <option value="Punjab">Punjab</option>
-                          <option value="Rajasthan">Rajasthan</option>
-                          <option value="Sikkim">Sikkim</option>
-                          <option value="Tamil Nadu">Tamil Nadu</option>
-                          <option value="Telangana">Telangana</option>
-                          <option value="Tripura">Tripura</option>
-                          <option value="Uttar Pradesh">Uttar Pradesh</option>
-                          <option value="Uttarakhand">Uttarakhand</option>
-                          <option value="West Bengal">West Bengal</option>
-                        </>
-                      )}
-                      {/district/i.test(f.label) && (
+                      {/district/i.test(displayLabel) && (
                         <>
                           {selectedState === "Andhra Pradesh" && (
                             <>
@@ -1199,24 +1220,23 @@ export default function GovernmentSchemesPage() {
                           )}
                         </>
                       )}
-                      {/crop/i.test(f.label) && (
+                      {/crop/i.test(displayLabel) && (
                         <>
                           <option value="Commercial">Commercial</option>
                           <option value="Fruits">Fruits</option>
-                          <option value="Grains">Grains</option>
-                          <option value="Millets">Millets</option>
-                          <option value="Oil Seeds">Oil Seeds</option>
+                          <option value="Plantation">Plantation</option>
                           <option value="Pulses">Pulses</option>
+                          <option value="Spices">Spices</option>
                           <option value="Vegetables">Vegetables</option>
                         </>
                       )}
-                      {/disaster/i.test(f.label) && (
+                      {/disaster/i.test(displayLabel) && (
                         <>
                           <option value="Yes">Yes</option>
                           <option value="No">No</option>
                         </>
                       )}
-                      {/type/i.test(f.label) && (
+                      {/type/i.test(displayLabel) && (
                         <>
                           <option value="">Select type</option>
                         </>
@@ -1225,8 +1245,8 @@ export default function GovernmentSchemesPage() {
                   ) : (
                     <input
                       id={`field-${f.key}`}
-                      type={/income|salary|earning|revenue|category/i.test(f.label) ? "number" : (numericHint ? "number" : "text")}
-                      placeholder={isNameOrLink ? "(auto-filled)" : (/income|salary|earning|revenue|category/i.test(f.label) ? "Enter income amount" : (numericHint ? "Enter number" : "e.g. OBC, Rainfed, Paddy"))}
+                      type={/income|salary|earning|revenue|category/i.test(displayLabel) ? "number" : (numericHint ? "number" : "text")}
+                      placeholder={isNameOrLink ? "" : (/income|salary|earning|revenue|category/i.test(displayLabel) ? "Enter income amount" : (numericHint ? "Enter number" : "e.g. OBC, Rainfed, Paddy"))}
                       value={form[f.key] || ""}
                       onChange={(e) => handleChange(f.key, e.target.value)}
                       disabled={isNameOrLink}
@@ -1315,7 +1335,13 @@ export default function GovernmentSchemesPage() {
                   </summary>
                   <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                     <pre className="text-xs text-gray-600 whitespace-pre-wrap overflow-x-auto">
-                      {JSON.stringify(scheme.raw, null, 2)}
+                      {JSON.stringify(
+                        Object.fromEntries(
+                          Object.entries(scheme.raw || {}).filter(([key]) => !/applicable\s*states/i.test(key))
+                        ),
+                        null,
+                        2
+                      )}
                     </pre>
                   </div>
                 </details>

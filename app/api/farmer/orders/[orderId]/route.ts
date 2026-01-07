@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { FarmerOrder } from '@/lib/models/FarmerOrder'
-import mongoose, { Document, Types } from 'mongoose'
+import { Document, Types } from 'mongoose'
 
 interface IFarmerOrder extends Document {
   _id: Types.ObjectId;
@@ -10,7 +10,7 @@ interface IFarmerOrder extends Document {
   orderNumber: string;
   status: string;
   // Add other fields as needed
-  [key: string]: any; // For any additional dynamic properties
+  [key: string]: unknown; // For any additional dynamic properties
 }
 
 // Order details API with realistic status tracking
@@ -58,7 +58,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ orderId:
     console.log('Order found successfully:', order.orderNumber)
 
     // Initialize tracking and statusHistory if they don't exist (for backward compatibility)
-    let updatedOrder = { ...order }
+    const updatedOrder = { ...order }
     if (!updatedOrder.tracking) {
       updatedOrder.tracking = {}
     }
@@ -70,71 +70,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ orderId:
       }]
     }
 
-    // Simulate order status progression based on time elapsed
-    const now = new Date()
-    const orderDate = new Date(order.createdAt)
-    const hoursElapsed = (now.getTime() - orderDate.getTime()) / (1000 * 60 * 60)
-
-    // Update status based on time elapsed (simulating realistic e-commerce timeline)
-    if (updatedOrder.status !== 'cancelled') {
-      if (hoursElapsed > 72 && updatedOrder.status === 'shipped') {
-        // After 3 days, mark as delivered (only if currently shipped)
-        updatedOrder.status = 'delivered'
-        updatedOrder.tracking.actualDelivery = new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000)
-        updatedOrder.tracking.deliveredAt = updatedOrder.tracking.actualDelivery
-        updatedOrder.tracking.currentLocation = 'Delivered'
-        updatedOrder.statusHistory.push({
-          status: 'delivered',
-          timestamp: updatedOrder.tracking.actualDelivery,
-          note: 'Order successfully delivered'
-        })
-      } else if (hoursElapsed > 24 && updatedOrder.status === 'confirmed') {
-        // After 1 day, mark as processing
-        updatedOrder.status = 'processing'
-        updatedOrder.statusHistory.push({
-          status: 'processing',
-          timestamp: new Date(now.getTime() - Math.random() * 12 * 60 * 60 * 1000),
-          note: 'Order is being processed'
-        })
-      } else if (hoursElapsed > 48 && updatedOrder.status === 'processing') {
-        // After 2 days, mark as shipped
-        updatedOrder.status = 'shipped'
-        updatedOrder.tracking.shippedAt = new Date(now.getTime() - Math.random() * 12 * 60 * 60 * 1000)
-        updatedOrder.tracking.currentLocation = 'In Transit'
-        updatedOrder.statusHistory.push({
-          status: 'shipped',
-          timestamp: updatedOrder.tracking.shippedAt,
-          note: 'Order has been shipped'
-        })
-        if (!updatedOrder.tracking.estimatedDelivery) {
-          const estimatedDelivery = new Date(orderDate)
-          estimatedDelivery.setDate(estimatedDelivery.getDate() + Math.floor(Math.random() * 3) + 3)
-          updatedOrder.tracking.estimatedDelivery = estimatedDelivery
-        }
-        
-        updatedOrder.statusHistory.push({
-          status: 'processing',
-          timestamp: new Date(orderDate.getTime() + 12 * 60 * 60 * 1000),
-          note: 'Order being prepared for shipment'
-        })
-      }
-
-      // Update the database if status changed
-      if (updatedOrder.status !== order.status) {
-        await FarmerOrder.updateOne(
-          { _id: orderId },
-          { 
-            $set: {
-              status: updatedOrder.status,
-              tracking: updatedOrder.tracking,
-              paymentStatus: updatedOrder.paymentStatus,
-              statusHistory: updatedOrder.statusHistory
-            }
-          }
-        )
-      }
-    }
-
     return NextResponse.json({ order: updatedOrder })
   } catch (err) {
     console.error('GET /api/farmer/orders/[orderId] error:', err)
@@ -142,7 +77,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ orderId:
   }
 }
 
-export async function POST(req: Request, { params }: { params: Promise<{ orderId: string }> }) {
+export async function POST(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
     const userId = searchParams.get('userId')
@@ -172,33 +107,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ orderId
     }
 
     if (action === 'cancel') {
-      if (['shipped', 'delivered'].includes(order.status)) {
-        return NextResponse.json({ error: 'Cannot cancel order that has been shipped' }, { status: 400 })
-      }
-
-      const { reason } = body
-      if (!reason) {
-        return NextResponse.json({ error: 'Cancellation reason is required' }, { status: 400 })
-      }
-
-      await FarmerOrder.updateOne(
-        { _id: orderId },
-        { 
-          $set: { 
-            status: 'cancelled',
-            paymentStatus: 'refunded'
-          },
-          $push: {
-            statusHistory: {
-              status: 'cancelled',
-              timestamp: new Date(),
-              note: `Order cancelled: ${reason}`
-            }
-          }
-        }
-      )
-
-      return NextResponse.json({ message: 'Order cancelled successfully' })
+      return NextResponse.json({ error: 'Order cancellation is not available' }, { status: 403 })
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 })

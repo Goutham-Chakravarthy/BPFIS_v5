@@ -120,8 +120,7 @@ const MarketplaceOrderSchema = new Schema<IMarketplaceOrder>({
   orderId: { 
     type: String, 
     required: true, 
-    unique: true,
-    index: true
+    unique: true
   },
   customerDetails: { 
     type: MarketplaceCustomerDetailsSchema, 
@@ -174,9 +173,7 @@ const MarketplaceOrderSchema = new Schema<IMarketplaceOrder>({
 });
 
 // Indexes for better query performance
-MarketplaceOrderSchema.index({ orderId: 1 });
 MarketplaceOrderSchema.index({ 'customerDetails.email': 1 });
-MarketplaceOrderSchema.index({ status: 1 });
 MarketplaceOrderSchema.index({ createdAt: -1 });
 MarketplaceOrderSchema.index({ 'items.sellerId': 1 });
 

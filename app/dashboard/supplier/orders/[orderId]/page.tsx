@@ -41,6 +41,11 @@ interface Order {
   items: OrderItem[];
   totalAmount: number;
   paymentStatus: PaymentStatus;
+  paymentDetails?: {
+    method?: 'card' | 'upi' | 'netbanking' | 'wallet';
+    transactionId?: string;
+    paidAt?: string;
+  };
   orderStatus: OrderStatus;
   shippingDetails?: {
     trackingNumber?: string;
@@ -70,7 +75,7 @@ export default function OrderDetailPage() {
   const [supplierId, setSupplierId] = useState<string>('');
 
   const statusOptions: OrderStatus[] = useMemo(
-    () => ['new', 'processing', 'shipped', 'delivered', 'returned', 'cancelled'],
+    () => ['new', 'processing', 'shipped', 'delivered', 'returned'],
     []
   );
 
@@ -271,6 +276,17 @@ export default function OrderDetailPage() {
             <div className="mt-1">
               <span className={getBadgeClass(order.paymentStatus, 'payment')}>{order.paymentStatus}</span>
             </div>
+            {order.paymentStatus === 'paid' && order.paymentDetails?.transactionId && (
+              <div className="mt-2 text-xs text-[#6b7280]">
+                <div className="font-mono">{order.paymentDetails.transactionId}</div>
+                {order.paymentDetails.method && (
+                  <div className="mt-1">{order.paymentDetails.method}</div>
+                )}
+                {order.paymentDetails.paidAt && (
+                  <div className="mt-1">{new Date(order.paymentDetails.paidAt).toLocaleString()}</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -300,7 +316,7 @@ export default function OrderDetailPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-[#6b7280]">₹{item.price.toFixed(2)}</p>
-                    <p className="text-base font-semibold text-[#1f3b2c]">₹{item.total.toFixed(2)}</p>
+                    <p className="text-base font-semibold text-[#1f3b2c]">₹{(item.total || (item.price * item.quantity)).toFixed(2)}</p>
                   </div>
                 </div>
               ))}
@@ -352,6 +368,8 @@ export default function OrderDetailPage() {
                   onChange={(e) => handleStatusChange(e.target.value as OrderStatus)}
                   className="select-field w-full"
                   disabled={saving}
+                  aria-label="Order Status"
+                  title="Order Status"
                 >
                   {statusOptions.map((status) => (
                     <option key={status} value={status}>
@@ -367,6 +385,8 @@ export default function OrderDetailPage() {
                   onChange={(e) => handlePaymentStatusChange(e.target.value as PaymentStatus)}
                   className="select-field w-full"
                   disabled={saving}
+                  aria-label="Payment Status"
+                  title="Payment Status"
                 >
                   {paymentOptions.map((status) => (
                     <option key={status} value={status}>
@@ -408,6 +428,9 @@ export default function OrderDetailPage() {
                   value={estimatedDelivery}
                   onChange={(e) => setEstimatedDelivery(e.target.value)}
                   className="input-field w-full"
+                  placeholder="e.g., 2024-01-15"
+                  aria-label="Estimated Delivery Date"
+                  title="Estimated Delivery Date"
                 />
               </div>
               <div>

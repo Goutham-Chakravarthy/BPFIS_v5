@@ -475,9 +475,7 @@ export default function CropPricePrediction() {
               
               <div className="mt-4 pt-4 border-t border-[#e2d4b7]">
                 <div className="text-xs text-[#6b7280] space-y-1">
-                  <p>• Predictions use ML algorithms trained on historical data</p>
-                  <p>• Confidence intervals indicate prediction uncertainty</p>
-                  <p>• Actual prices may vary due to market conditions</p>
+                <p>• Actual prices may vary due to market conditions</p>
                 </div>
               </div>
             </div>

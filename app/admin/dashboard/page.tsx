@@ -79,18 +79,7 @@ export default function AdminDashboard() {
         <div className="mb-6">
           <div className="bg-white p-6 rounded-lg shadow">
             <h2 className="text-lg font-medium text-gray-900 mb-4">Recent Activities</h2>
-            <RecentActivities
-              activities={(stats?.recentOrders || []).map(order => ({
-                id: order?.id || 'unknown',
-                type: 'marketplace_order',
-                title: `Order #${(order?.id || '').substring(0, 8)}`,
-                description: `New order from ${order?.customer || 'Customer'}`,
-                amount: order?.amount || 0,
-                status: order?.status || 'pending',
-                timestamp: new Date(),
-                user: order?.customer || 'Unknown'
-              }))}
-            />
+            <RecentActivities activities={stats?.recentActivities || []} />
           </div>
         </div>
 

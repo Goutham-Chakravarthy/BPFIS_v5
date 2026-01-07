@@ -42,6 +42,12 @@ export default function ProfilePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [supplierId, setSupplierId] = useState<string>('');
+  const [verificationStatus, setVerificationStatus] = useState<{
+    documentsUploaded: boolean;
+    verificationStatus: 'pending' | 'verified' | 'rejected';
+    verifiedAt?: string;
+    rejectionReason?: string;
+  } | null>(null);
   
   const [formData, setFormData] = useState({
     companyName: '',
@@ -128,6 +134,24 @@ export default function ProfilePage() {
           productCategories: ''
         }
       });
+
+      // Fetch verification status from new API
+      try {
+        const verificationResponse = await fetch('/api/supplier/documents', withSupplierAuth());
+        if (verificationResponse.ok) {
+          const verificationData = await verificationResponse.json();
+          setVerificationStatus(verificationData.verificationStatus);
+        }
+      } catch (verifError) {
+        console.warn('Failed to fetch verification status:', verifError);
+        // Fallback to profile data for legacy suppliers
+        if (sellerData) {
+          setVerificationStatus({
+            documentsUploaded: true, // Legacy suppliers assumed to have documents
+            verificationStatus: sellerData.verificationStatus || 'pending'
+          });
+        }
+      }
     } catch (error) {
       console.error('Error loading profile:', error);
       setError('Failed to load profile');
@@ -280,9 +304,30 @@ export default function ProfilePage() {
           <div className="bg-white border border-[#e2d4b7] rounded-lg p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-[#1f3b2c]">Business Information</h2>
-              <span className={`badge ${getVerificationStatusColor(profile.verificationStatus)}`}>
-                {profile.verificationStatus === 'verified' ? 'Verified' : profile.verificationStatus === 'pending' ? 'Pending Verification' : 'Not Verified'}
-              </span>
+              {verificationStatus ? (
+                <span className={`badge ${
+                  !verificationStatus.documentsUploaded
+                    ? 'badge-error'
+                    : verificationStatus.verificationStatus === 'verified' 
+                    ? 'badge-success'
+                    : verificationStatus.verificationStatus === 'pending'
+                    ? 'badge-warning'
+                    : 'badge-error'
+                }`}>
+                  {!verificationStatus.documentsUploaded
+                    ? 'Not Verified'
+                    : verificationStatus.verificationStatus === 'verified' 
+                    ? 'Verified'
+                    : verificationStatus.verificationStatus === 'pending'
+                    ? 'Pending Verification'
+                    : 'Not Verified'
+                  }
+                </span>
+              ) : (
+                <span className={`badge ${getVerificationStatusColor(profile?.verificationStatus || '')}`}>
+                  {profile?.verificationStatus === 'verified' ? 'Verified' : profile?.verificationStatus === 'pending' ? 'Pending Verification' : 'Not Verified'}
+                </span>
+              )}
             </div>
 
             {editing ? (
@@ -546,20 +591,41 @@ export default function ProfilePage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-[#6b7280]">Verification</span>
-                  <span className={`badge ${getVerificationStatusColor(profile.verificationStatus)}`}>
-                    {profile.verificationStatus}
-                  </span>
+                  {verificationStatus ? (
+                    <span className={`badge ${
+                      !verificationStatus.documentsUploaded
+                        ? 'badge-error'
+                        : verificationStatus.verificationStatus === 'verified' 
+                        ? 'badge-success'
+                        : verificationStatus.verificationStatus === 'pending'
+                        ? 'badge-warning'
+                        : 'badge-error'
+                    }`}>
+                      {!verificationStatus.documentsUploaded
+                        ? 'Not Verified'
+                        : verificationStatus.verificationStatus === 'verified' 
+                        ? 'Verified'
+                        : verificationStatus.verificationStatus === 'pending'
+                        ? 'Pending'
+                        : 'Rejected'
+                      }
+                    </span>
+                  ) : (
+                    <span className={`badge ${getVerificationStatusColor(profile?.verificationStatus || '')}`}>
+                      {profile?.verificationStatus || 'Unknown'}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-[#6b7280]">Account Status</span>
-                  <span className={`badge ${profile.isActive ? 'badge-success' : 'badge-error'}`}>
-                    {profile.isActive ? 'Active' : 'Inactive'}
+                  <span className={`badge ${profile?.isActive ? 'badge-success' : 'badge-error'}`}>
+                    {profile?.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-[#6b7280]">Member Since</span>
                   <span className="text-sm text-[#1f3b2c]">
-                    {new Date(profile.createdAt).toLocaleDateString()}
+                    {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'Unknown'}
                   </span>
                 </div>
               </div>

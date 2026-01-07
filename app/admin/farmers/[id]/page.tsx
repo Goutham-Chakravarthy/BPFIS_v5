@@ -2,8 +2,9 @@
 
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, User, MapPin, Phone, Mail, Calendar, CheckCircle, XCircle, AlertCircle, FileText, LandPlot, Users, Building2, ExternalLink } from 'lucide-react';
+import { ArrowLeft, User, MapPin, Phone, Mail, Calendar, CheckCircle, XCircle, AlertCircle, FileText, LandPlot, Users, Building2, ExternalLink, Package, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
+import { adminFetch } from '@/lib/admin-client-auth';
 
 interface Farmer {
   _id: string;
@@ -385,9 +386,9 @@ const IntegrationCard = ({ integration, type }: { integration: any; type: 'sent'
           </div>
           <div>
             <p className="text-sm font-medium text-gray-900">
-              {userRole}: {user?.name || 'Unknown'}
+              {user?.name || 'Not provided'}
             </p>
-            <p className="text-sm text-gray-500">{user?.email || 'No email'}</p>
+            <p className="text-sm text-gray-500">{user?.email || 'Not provided'}</p>
           </div>
         </div>
         <StatusBadge status={integration.status} variant={getStatusVariant(integration.status)} />
@@ -426,7 +427,7 @@ const IntegrationCard = ({ integration, type }: { integration: any; type: 'sent'
           <DataGrid columns={2}>
             <DataField
               label="Total Investment"
-              value={`₹${integration.financialAgreement.totalInvestment || 'N/A'}`}
+              value={`₹${integration.financialAgreement.totalInvestment || 'Not provided'}`}
             />
             <DataField
               label={`${type === 'sent' ? 'Your' : 'Requester'} Contribution`}
@@ -474,13 +475,14 @@ export default function FarmerDetailPage({ params }: { params: Promise<{ id: str
   const [farmer, setFarmer] = useState<Farmer | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [verifying, setVerifying] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     const fetchFarmer = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/admin/farmers/${resolvedParams.id}`);
+        const response = await adminFetch(`/api/admin/farmers/${resolvedParams.id}`);
         
         if (!response.ok) {
           throw new Error('Failed to fetch farmer details');
@@ -498,6 +500,32 @@ export default function FarmerDetailPage({ params }: { params: Promise<{ id: str
 
     fetchFarmer();
   }, [resolvedParams.id]);
+
+  const handleVerify = async () => {
+    if (!farmer || farmer.isVerified) return;
+    
+    try {
+      setVerifying(true);
+      const response = await adminFetch(`/api/admin/farmers/${resolvedParams.id}/verify`, {
+        method: 'PUT',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to verify farmer');
+      }
+      
+      // Refetch farmer data to get updated state from database
+      const updatedResponse = await adminFetch(`/api/admin/farmers/${resolvedParams.id}`);
+      if (updatedResponse.ok) {
+        const updatedData = await updatedResponse.json();
+        setFarmer(updatedData.data);
+      }
+    } catch (error) {
+      console.error('Error verifying farmer:', error);
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -589,6 +617,15 @@ export default function FarmerDetailPage({ params }: { params: Promise<{ id: str
                 </div>
               </div>
               <div className="flex items-center space-x-3">
+                {!farmer.isVerified && (
+                  <button
+                    onClick={handleVerify}
+                    disabled={verifying}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {verifying ? 'Verifying...' : 'Verify Farmer'}
+                  </button>
+                )}
                 <StatusBadge
                   status={farmer.isVerified ? 'Verified' : 'Pending Verification'}
                   variant={farmer.isVerified ? 'success' : 'warning'}
@@ -641,42 +678,6 @@ export default function FarmerDetailPage({ params }: { params: Promise<{ id: str
           </div>
         </div>
 
-        {/* Basic Information */}
-        <InfoCard title="Basic Information" icon={User} className="mb-6">
-          <DataGrid columns={2}>
-            <DataField label="Full Name" value={farmer.basicInfo?.fullName || farmer.name} icon={User} />
-            <DataField label="Email Address" value={farmer.basicInfo?.email || farmer.email} icon={Mail} />
-            <DataField label="Phone Number" value={farmer.basicInfo?.phone || farmer.phone || 'Not provided'} icon={Phone} />
-            <DataField label="Address" value={farmer.basicInfo?.address || farmer.address || 'Not provided'} icon={MapPin} />
-            <DataField
-              label="Verification Status"
-              value={<StatusBadge
-                status={(farmer.basicInfo?.isVerified ?? farmer.isVerified) ? 'Verified' : 'Not Verified'}
-                variant={(farmer.basicInfo?.isVerified ?? farmer.isVerified) ? 'success' : 'warning'}
-              />}
-            />
-            <DataField
-              label="Email Verified"
-              value={<StatusBadge
-                status={farmer.basicInfo?.emailVerified ? 'Verified' : 'Not Verified'}
-                variant={farmer.basicInfo?.emailVerified ? 'success' : 'warning'}
-              />}
-            />
-            <DataField
-              label="Phone Verified"
-              value={<StatusBadge
-                status={farmer.basicInfo?.phoneVerified ? 'Verified' : 'Not Verified'}
-                variant={farmer.basicInfo?.phoneVerified ? 'success' : 'warning'}
-              />}
-            />
-            <DataField
-              label="Member Since"
-              value={new Date(farmer.basicInfo?.createdAt || farmer.createdAt).toLocaleDateString()}
-              icon={Calendar}
-            />
-          </DataGrid>
-        </InfoCard>
-
         {/* Scheme Profile Information */}
         {farmer.profileData && (
           <InfoCard title="Scheme Profile Details" icon={FileText} className="mb-6">
@@ -687,11 +688,11 @@ export default function FarmerDetailPage({ params }: { params: Promise<{ id: str
                 Personal Details
               </h5>
               <DataGrid columns={3}>
-                <DataField label="Profile Name" value={farmer.profileData.profileName || 'N/A'} />
-                <DataField label="Farmer Age" value={farmer.profileData.farmer_age || 'N/A'} />
-                <DataField label="Gender" value={farmer.profileData.gender || 'N/A'} />
-                <DataField label="Farmer Category" value={farmer.profileData.farmer_category || 'N/A'} />
-                <DataField label="Income Category" value={farmer.profileData.income_catogory || 'N/A'} />
+                <DataField label="Profile Name" value={farmer.profileData.profileName || 'Not provided'} />
+                <DataField label="Farmer Age" value={farmer.profileData.farmer_age || 'Not provided'} />
+                <DataField label="Gender" value={farmer.profileData.gender || 'Not provided'} />
+                <DataField label="Farmer Category" value={farmer.profileData.farmer_category || 'Not provided'} />
+                <DataField label="Income Category" value={farmer.profileData.income_catogory || 'Not provided'} />
               </DataGrid>
             </div>
 
@@ -702,9 +703,9 @@ export default function FarmerDetailPage({ params }: { params: Promise<{ id: str
                 Location Information
               </h5>
               <DataGrid columns={3}>
-                <DataField label="State" value={farmer.profileData.location_state || 'N/A'} />
-                <DataField label="District" value={farmer.profileData.location_district || 'N/A'} />
-                <DataField label="Village/RTC" value={farmer.profileData.village_rtc_data || 'N/A'} />
+                <DataField label="State" value={farmer.profileData.location_state || 'Not provided'} />
+                <DataField label="District" value={farmer.profileData.location_district || 'Not provided'} />
+                <DataField label="Village/RTC" value={farmer.profileData.village_rtc_data || 'Not provided'} />
               </DataGrid>
             </div>
 
@@ -715,12 +716,12 @@ export default function FarmerDetailPage({ params }: { params: Promise<{ id: str
                 Farm Details
               </h5>
               <DataGrid columns={3}>
-                <DataField label="Land Size" value={farmer.profileData.land_size || 'N/A'} />
-                <DataField label="Crop Type" value={farmer.profileData.crop_type || 'N/A'} />
-                <DataField label="Season" value={farmer.profileData.season || 'N/A'} />
-                <DataField label="Irrigation Type" value={farmer.profileData.irrigation_type || 'N/A'} />
-                <DataField label="Water Source Capacity" value={farmer.profileData.water_source_capacity || 'N/A'} />
-                <DataField label="Soil Type" value={farmer.profileData.soil_type || 'N/A'} />
+                <DataField label="Land Size" value={farmer.profileData.land_size || 'Not provided'} />
+                <DataField label="Crop Type" value={farmer.profileData.crop_type || 'Not provided'} />
+                <DataField label="Season" value={farmer.profileData.season || 'Not provided'} />
+                <DataField label="Irrigation Type" value={farmer.profileData.irrigation_type || 'Not provided'} />
+                <DataField label="Water Source Capacity" value={farmer.profileData.water_source_capacity || 'Not provided'} />
+                <DataField label="Soil Type" value={farmer.profileData.soil_type || 'Not provided'} />
               </DataGrid>
             </div>
 
@@ -731,12 +732,12 @@ export default function FarmerDetailPage({ params }: { params: Promise<{ id: str
                 Certifications & Memberships
               </h5>
               <DataGrid columns={2}>
-                <DataField label="Organic Certification" value={farmer.profileData.organic_certification || 'N/A'} />
-                <DataField label="PM Kisan Registration" value={farmer.profileData.pm_kisan_registration || 'N/A'} />
-                <DataField label="Equipment Ownership" value={farmer.profileData.equipment_ownership || 'N/A'} />
-                <DataField label="FPO Membership" value={farmer.profileData.fpo_membership || 'N/A'} />
-                <DataField label="Insurance Status" value={farmer.profileData.insurance_status_pmfby || 'N/A'} />
-                <DataField label="Disaster Affected Region" value={farmer.profileData.disaster_affected_region || 'N/A'} />
+                <DataField label="Organic Certification" value={farmer.profileData.organic_certification || 'Not provided'} />
+                <DataField label="PM Kisan Registration" value={farmer.profileData.pm_kisan_registration || 'Not provided'} />
+                <DataField label="Equipment Ownership" value={farmer.profileData.equipment_ownership || 'Not provided'} />
+                <DataField label="FPO Membership" value={farmer.profileData.fpo_membership || 'Not provided'} />
+                <DataField label="Insurance Status" value={farmer.profileData.insurance_status_pmfby || 'Not provided'} />
+                <DataField label="Disaster Affected Region" value={farmer.profileData.disaster_affected_region || 'Not provided'} />
               </DataGrid>
             </div>
 
@@ -818,35 +819,35 @@ export default function FarmerDetailPage({ params }: { params: Promise<{ id: str
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="py-2">
                       <dt className="text-sm font-medium text-gray-500">Verified Name</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.verifiedName || 'N/A'}</dd>
+                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.verifiedName || 'Not provided'}</dd>
                     </div>
                     <div className="py-2">
                       <dt className="text-sm font-medium text-gray-500">Kannada Name</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.kannadaName || 'N/A'}</dd>
+                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.kannadaName || 'Not provided'}</dd>
                     </div>
                     <div className="py-2">
                       <dt className="text-sm font-medium text-gray-500">Aadhaar Kannada Name</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.aadhaarKannadaName || 'N/A'}</dd>
+                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.aadhaarKannadaName || 'Not provided'}</dd>
                     </div>
                     <div className="py-2">
                       <dt className="text-sm font-medium text-gray-500">Age</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.age || 'N/A'}</dd>
+                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.age || 'Not provided'}</dd>
                     </div>
                     <div className="py-2">
                       <dt className="text-sm font-medium text-gray-500">Gender</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.gender || 'N/A'}</dd>
+                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.gender || 'Not provided'}</dd>
                     </div>
                     <div className="py-2">
                       <dt className="text-sm font-medium text-gray-500">Date of Birth</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.dob || 'N/A'}</dd>
+                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.dob || 'Not provided'}</dd>
                     </div>
                     <div className="py-2">
                       <dt className="text-sm font-medium text-gray-500">Contact Number</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.contactNumber || 'N/A'}</dd>
+                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.contactNumber || 'Not provided'}</dd>
                     </div>
                     <div className="py-2">
                       <dt className="text-sm font-medium text-gray-500">Home Address</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.homeAddress || 'N/A'}</dd>
+                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.homeAddress || 'Not provided'}</dd>
                     </div>
                     <div className="py-2">
                       <dt className="text-sm font-medium text-gray-500">Name Verification Status</dt>
@@ -858,7 +859,7 @@ export default function FarmerDetailPage({ params }: { params: Promise<{ id: str
                             ? 'bg-red-100 text-red-800'
                             : 'bg-yellow-100 text-yellow-800'
                         }`}>
-                          {farmer.farmerProfile.nameVerificationStatus || 'N/A'}
+                          {farmer.farmerProfile.nameVerificationStatus || 'Not provided'}
                         </span>
                       </dd>
                     </div>
@@ -871,7 +872,7 @@ export default function FarmerDetailPage({ params }: { params: Promise<{ id: str
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="py-2">
                       <dt className="text-sm font-medium text-gray-500">Land Parcel Identity</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.landParcelIdentity || 'N/A'}</dd>
+                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.landParcelIdentity || 'Not provided'}</dd>
                     </div>
                     <div className="py-2">
                       <dt className="text-sm font-medium text-gray-500">Ownership Verified</dt>
@@ -887,27 +888,27 @@ export default function FarmerDetailPage({ params }: { params: Promise<{ id: str
                     </div>
                     <div className="py-2">
                       <dt className="text-sm font-medium text-gray-500">Total Cultivable Area</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.totalCultivableArea || 'N/A'}</dd>
+                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.totalCultivableArea || 'Not provided'}</dd>
                     </div>
                     <div className="py-2">
                       <dt className="text-sm font-medium text-gray-500">Soil Properties</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.soilProperties || 'N/A'}</dd>
+                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.soilProperties || 'Not provided'}</dd>
                     </div>
                     <div className="py-2">
                       <dt className="text-sm font-medium text-gray-500">Irrigation Potential</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.irrigationPotential || 'N/A'}</dd>
+                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.irrigationPotential || 'Not provided'}</dd>
                     </div>
                     <div className="py-2">
                       <dt className="text-sm font-medium text-gray-500">Cropping History</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.croppingHistory || 'N/A'}</dd>
+                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.croppingHistory || 'Not provided'}</dd>
                     </div>
                     <div className="py-2">
                       <dt className="text-sm font-medium text-gray-500">Revenue Obligations</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.revenueObligations || 'N/A'}</dd>
+                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.revenueObligations || 'Not provided'}</dd>
                     </div>
                     <div className="py-2">
                       <dt className="text-sm font-medium text-gray-500">Mutation Traceability</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.mutationTraceability || 'N/A'}</dd>
+                      <dd className="mt-1 text-sm text-gray-900">{farmer.farmerProfile.mutationTraceability || 'Not provided'}</dd>
                     </div>
                     <div className="py-2">
                       <dt className="text-sm font-medium text-gray-500">Ready to Integrate</dt>
@@ -1014,11 +1015,11 @@ export default function FarmerDetailPage({ params }: { params: Promise<{ id: str
                           <DataField label="Survey Number" value={land.rtcDetails.surveyNumber} />
                           <DataField label="Extent" value={`${land.rtcDetails.extent} acres`} />
                           <DataField label="Location" value={land.rtcDetails.location} />
-                          <DataField label="Taluk" value={land.rtcDetails.taluk || 'N/A'} />
-                          <DataField label="Hobli" value={land.rtcDetails.hobli || 'N/A'} />
-                          <DataField label="Village" value={land.rtcDetails.village || 'N/A'} />
-                          <DataField label="Soil Type" value={land.rtcDetails.soilType || 'N/A'} />
-                          <DataField label="Crop Type" value={land.rtcDetails.cropType || 'N/A'} />
+                          <DataField label="Taluk" value={land.rtcDetails.taluk || 'Not provided'} />
+                          <DataField label="Hobli" value={land.rtcDetails.hobli || 'Not provided'} />
+                          <DataField label="Village" value={land.rtcDetails.village || 'Not provided'} />
+                          <DataField label="Soil Type" value={land.rtcDetails.soilType || 'Not provided'} />
+                          <DataField label="Crop Type" value={land.rtcDetails.cropType || 'Not provided'} />
                         </DataGrid>
                       </div>
                     )}
@@ -1033,7 +1034,7 @@ export default function FarmerDetailPage({ params }: { params: Promise<{ id: str
                         <DataGrid columns={2}>
                           <DataField label="Latitude" value={land.landData.centroidLatitude.toString()} />
                           <DataField label="Longitude" value={land.landData.centroidLongitude.toString()} />
-                          <DataField label="Land Size" value={`${land.landData.landSizeInAcres || 'N/A'} acres`} />
+                          <DataField label="Land Size" value={`${land.landData.landSizeInAcres || 'Not provided'} acres`} />
                           {land.processedAt && (
                             <DataField
                               label="Processed At"
@@ -1124,6 +1125,85 @@ export default function FarmerDetailPage({ params }: { params: Promise<{ id: str
                   <p className="text-gray-500">No land integration requests found.</p>
                 </div>
               )}
+            </div>
+          </InfoCard>
+        )}
+
+        {/* Products */}
+        {farmer.products && farmer.products.length > 0 && (
+          <InfoCard title="Products" icon={Package} className="mb-6">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {farmer.products.map((product) => (
+                    <tr key={product._id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{product.price}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{product.stock}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{product.category || 'Not provided'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <StatusBadge 
+                          status={product.status || 'active'} 
+                          variant={product.status === 'active' ? 'success' : 'warning'}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </InfoCard>
+        )}
+
+        {/* Orders */}
+        {farmer.orders && farmer.orders.length > 0 && (
+          <InfoCard title="Recent Orders" icon={ShoppingBag} className="mb-6">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {farmer.orders.map((order) => (
+                    <tr key={order._id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        #{order._id.toString().substring(0, 8)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{order.total}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <StatusBadge 
+                          status={order.status} 
+                          variant={order.status === 'completed' ? 'success' : order.status === 'pending' ? 'warning' : 'error'}
+                        />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <StatusBadge 
+                          status={order.paymentStatus || 'pending'} 
+                          variant={order.paymentStatus === 'paid' ? 'success' : 'warning'}
+                        />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {new Date(order.createdAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </InfoCard>
         )}

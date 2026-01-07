@@ -31,6 +31,8 @@ export default function AdminLogin() {
         throw new Error(data.error || 'Login failed');
       }
 
+      // Token is set as HTTP-only cookie, so we don't need to store it manually
+      // The withAdminAuth function will read it from the cookie
       router.push('/admin/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -47,7 +49,7 @@ export default function AdminLogin() {
             Admin Sign in
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Use admin@bpfis.com / admin@123
+            Use admin@bpfis.com / admin123
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>

@@ -39,6 +39,12 @@ export default function VerificationPage() {
   const [profile, setProfile] = useState<SellerProfile | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [verificationStatus, setVerificationStatus] = useState<{
+    documentsUploaded: boolean;
+    verificationStatus: 'pending' | 'verified' | 'rejected';
+    verifiedAt?: string;
+    rejectionReason?: string;
+  } | null>(null);
   
   const [documents, setDocuments] = useState({
     businessCertificate: null as File | null,
@@ -80,7 +86,7 @@ export default function VerificationPage() {
 
   const loadProfile = async () => {
     try {
-      // First, get the supplier ID
+      // First, get supplier ID
       const profileResponse = await fetch('/api/supplier', withSupplierAuth());
       if (!profileResponse.ok) {
         throw new Error('Failed to load supplier profile');
@@ -93,7 +99,7 @@ export default function VerificationPage() {
         throw new Error('Supplier ID not found in profile');
       }
 
-      // Now fetch the full profile with the ID
+      // Now fetch the full profile with ID
       const response = await fetch(
         `/api/supplier/${currentSupplierId}/profile`, 
         withSupplierAuth()
@@ -105,6 +111,24 @@ export default function VerificationPage() {
 
       const data = await response.json();
       setProfile(data.seller || data.supplier);
+
+      // Fetch verification status from new API
+      try {
+        const verificationResponse = await fetch('/api/supplier/documents', withSupplierAuth());
+        if (verificationResponse.ok) {
+          const verificationData = await verificationResponse.json();
+          setVerificationStatus(verificationData.verificationStatus);
+        }
+      } catch (verifError) {
+        console.warn('Failed to fetch verification status:', verifError);
+        // Fallback to profile data for legacy suppliers
+        if (data.seller || data.supplier) {
+          setVerificationStatus({
+            documentsUploaded: true, // Legacy suppliers assumed to have documents
+            verificationStatus: (data.seller || data.supplier).verificationStatus || 'pending'
+          });
+        }
+      }
     } catch (error) {
       console.error('Error loading profile:', error);
       setError('Failed to load profile. Please try again later.');
@@ -140,46 +164,45 @@ export default function VerificationPage() {
         }
       });
 
-      const response = await fetch(`/api/supplier/${profile._id}/documents`, {
+      // Upload documents using the new API
+      const uploadResponse = await fetch(`/api/supplier/${profile._id}/documents`, {
         method: 'POST',
         body: formData,
-        credentials: 'include' // Include credentials for the session cookie
-        // Let the browser set the content-type with the correct boundary
+        credentials: 'include'
       });
 
-      // Check if response is JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Non-JSON response:', text);
-        throw new Error('Server returned an invalid response');
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.error || 'Failed to upload documents');
       }
 
-      const data = await response.json();
+      const uploadData = await uploadResponse.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to upload documents');
-      }
+      // Mark documents as uploaded for verification
+      const markUploadedResponse = await fetch('/api/supplier/documents', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          documentIds: uploadData.uploadedDocumentIds || [] // This should come from the upload response
+        }),
+        credentials: 'include'
+      });
 
-      // Handle successful upload
-      if (data.uploadSummary) {
-        const { successful, failed, failedDetails } = data.uploadSummary;
-        
-        // Log failed uploads for debugging
-        if (failed > 0 && failedDetails?.length > 0) {
-          console.warn('Some documents failed to upload:', failedDetails);
-        }
-        
-        if (successful > 0) {
-          setSuccess(`Successfully uploaded ${successful} document(s). ${failed > 0 ? `${failed} document(s) failed to upload.` : 'Your verification is now under review.'}`);
-        } else {
-          throw new Error('No documents were uploaded successfully');
-        }
-      } else {
+      if (markUploadedResponse.ok) {
+        const markUploadedData = await markUploadedResponse.json();
+        setVerificationStatus({
+          documentsUploaded: true,
+          verificationStatus: 'pending'
+        });
         setSuccess('Documents uploaded successfully! Your verification is now under review.');
+      } else {
+        // Even if marking fails, documents were uploaded
+        setSuccess('Documents uploaded! Please contact support to complete verification.');
       }
 
-      // Refresh the profile to show updated documents
+      // Refresh profile to show updated documents
       await loadProfile();
     } catch (error: any) {
       console.error('Error uploading documents:', error);
@@ -219,32 +242,43 @@ export default function VerificationPage() {
       </div>
 
       {/* Verification Status */}
-      {profile && (
+      {verificationStatus && (
         <div className="bg-white border border-[#e2d4b7] rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold text-[#1f3b2c]">Verification Status</h2>
               <p className="text-sm text-[#6b7280] mt-1">
-                {profile.verificationStatus === 'verified' 
+                {!verificationStatus.documentsUploaded 
+                  ? 'Not Verified'
+                  : verificationStatus.verificationStatus === 'verified' 
                   ? 'Your account is verified and active'
-                  : profile.verificationStatus === 'pending'
+                  : verificationStatus.verificationStatus === 'pending'
                   ? 'Your documents are under review'
-                  : 'Please upload required documents for verification'
+                  : 'Verification was rejected. Please re-upload documents.'
                 }
               </p>
+              {verificationStatus.rejectionReason && (
+                <p className="text-sm text-red-600 mt-1">
+                  Reason: {verificationStatus.rejectionReason}
+                </p>
+              )}
             </div>
             <div className={`px-4 py-2 rounded-full text-sm font-medium ${
-              profile.verificationStatus === 'verified' 
+              !verificationStatus.documentsUploaded
+                ? 'bg-red-100 text-red-800'
+                : verificationStatus.verificationStatus === 'verified' 
                 ? 'bg-green-100 text-green-800'
-                : profile.verificationStatus === 'pending'
+                : verificationStatus.verificationStatus === 'pending'
                 ? 'bg-yellow-100 text-yellow-800'
                 : 'bg-red-100 text-red-800'
             }`}>
-              {profile.verificationStatus === 'verified' 
+              {!verificationStatus.documentsUploaded
+                ? 'Not Verified'
+                : verificationStatus.verificationStatus === 'verified' 
                 ? 'Verified'
-                : profile.verificationStatus === 'pending'
+                : verificationStatus.verificationStatus === 'pending'
                 ? 'Under Review'
-                : 'Not Verified'
+                : 'Rejected'
               }
             </div>
           </div>
@@ -327,10 +361,10 @@ export default function VerificationPage() {
         <div className="mt-8 flex items-center justify-end">
           <button
             onClick={handleUpload}
-            disabled={uploading || Object.values(documents).every(doc => doc === null)}
+            disabled={uploading || Object.values(documents).every(doc => doc === null) || verificationStatus?.documentsUploaded}
             className="inline-flex items-center justify-center rounded-md bg-[#1f3b2c] px-6 py-2 text-sm font-medium text-white hover:bg-[#2d4f3c] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {uploading ? 'Uploading...' : 'Upload Documents'}
+            {uploading ? 'Uploading...' : verificationStatus?.documentsUploaded ? 'Upload Documents' : 'Upload Documents'}
           </button>
         </div>
       </div>

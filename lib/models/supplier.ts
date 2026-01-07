@@ -88,6 +88,10 @@ const MixedDocumentSchema = new Schema({
   rejectionReason: { type: String }
 }, { _id: false });
 
+void mongoose;
+void DocumentSchema;
+void MixedDocumentSchema;
+
 const SellerSchema = new Schema<ISeller>({
   companyName: { type: String, required: true },
   email: { type: String, required: true, unique: true },
@@ -265,6 +269,11 @@ export interface IOrder extends Document {
   }[];
   totalAmount: number;
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+  paymentDetails?: {
+    method?: 'card' | 'upi' | 'netbanking' | 'wallet';
+    transactionId?: string;
+    paidAt?: Date;
+  };
   orderStatus: 'new' | 'processing' | 'shipped' | 'delivered' | 'returned' | 'cancelled';
   shippingDetails?: {
     trackingNumber?: string;
@@ -304,6 +313,11 @@ const OrderSchema = new Schema<IOrder>({
     type: String, 
     enum: ['pending', 'paid', 'failed', 'refunded'], 
     default: 'pending' 
+  },
+  paymentDetails: {
+    method: { type: String, enum: ['card', 'upi', 'netbanking', 'wallet'] },
+    transactionId: { type: String },
+    paidAt: { type: Date }
   },
   orderStatus: { 
     type: String, 
@@ -443,7 +457,8 @@ DailyAnalyticsSchema.index({ date: -1 });
 
 // Export models (reuse if already compiled)
 export const Seller = models.Supplier || model<ISeller>('Supplier', SellerSchema);
-export const Product = models.SupplierProduct || model<IProduct>('SupplierProduct', ProductSchema);
+export const SupplierProduct = models.SupplierProduct || model<IProduct>('SupplierProduct', ProductSchema);
+export const Product = models.Product || model<IProduct>('Product', ProductSchema, 'supplierproducts');
 export const InventoryLog = models.SupplierInventoryLog || model<IInventoryLog>('SupplierInventoryLog', InventoryLogSchema);
 export const Order = models.SupplierOrder || model<IOrder>('SupplierOrder', OrderSchema);
 export const Review = models.SupplierReview || model<IReview>('SupplierReview', ReviewSchema);

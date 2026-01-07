@@ -112,14 +112,12 @@ DocumentSchema.virtual('url').get(function() {
 });
 
 // Pre-save hook to ensure timestamps
-DocumentSchema.pre<IDocument>('save', function(next) {
+DocumentSchema.pre<IDocument>('save', function() {
   const now = new Date();
   if (!this.createdAt) {
     this.createdAt = now;
   }
   this.updatedAt = now;
-  // @ts-ignore - next() is callable in Mongoose middleware
-  next();
 });
 
 // Static method to find by Cloudinary ID

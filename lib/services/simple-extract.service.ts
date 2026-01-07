@@ -6,10 +6,12 @@ import { extractRTCData, extractAadhaarData } from './pdf-extract.service';
 import Document from '../models/Document';
 import OcrResult from '../models/OcrResult';
 
-export async function processDocument(documentId: string, userId: string) {
+export async function processDocument(documentId: string, userId: string, sourcePath?: string) {
   const doc = await Document.findById(documentId);
   if (!doc) throw new Error('document_not_found');
   if (doc.owner.toString() !== userId.toString()) throw new Error('forbidden');
+
+  const effectivePath = sourcePath || doc.path;
 
   let result = await OcrResult.findOne({ document: doc._id });
   if (!result) {
@@ -29,17 +31,17 @@ export async function processDocument(documentId: string, userId: string) {
     
     // Extract data based on document type
     if (docType === 'rtc') {
-      extractedData = await extractRTCData(doc.path);
+      extractedData = await extractRTCData(effectivePath);
       rawText = JSON.stringify(extractedData, null, 2);
     } else if (docType === 'aadhaar' || docType === 'aadhar') {
-      extractedData = await extractAadhaarData(doc.path);
+      extractedData = await extractAadhaarData(effectivePath);
       rawText = JSON.stringify(extractedData, null, 2);
     } else {
       // Generic text extraction
       const { execSync } = require('child_process');
       const TMP = `/tmp/generic_${uuidv4()}.txt`;
       try {
-        execSync(`pdftotext -layout -nopgbrk "${doc.path}" "${TMP}"`);
+        execSync(`pdftotext -layout -nopgbrk "${effectivePath}" "${TMP}"`);
         rawText = fs.readFileSync(TMP, "utf8");
         try { fs.unlinkSync(TMP); } catch {}
       } catch (e) {

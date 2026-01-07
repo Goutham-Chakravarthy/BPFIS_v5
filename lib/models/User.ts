@@ -16,6 +16,13 @@ export interface IUser extends Document {
   emailOtp?: string;
   phoneOtp?: string;
   otpExpiresAt?: Date;
+  // Farmer verification field
+  isVerified?: boolean; // Admin verification status for farmers
+  // Supplier verification fields
+  documentsUploaded?: boolean; // Whether supplier has uploaded required documents
+  verificationStatus?: 'pending' | 'verified' | 'rejected'; // Admin verification status
+  verifiedAt?: Date; // When admin verified the supplier
+  rejectionReason?: string; // Reason for rejection if applicable
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +42,13 @@ const UserSchema = new Schema<IUser>(
     emailOtp: { type: String },
     phoneOtp: { type: String },
     otpExpiresAt: { type: Date },
+    // Farmer verification field
+    isVerified: { type: Boolean, default: false },
+    // Supplier verification fields
+    documentsUploaded: { type: Boolean, default: false },
+    verificationStatus: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' },
+    verifiedAt: { type: Date },
+    rejectionReason: { type: String },
   },
   { timestamps: true }
 );

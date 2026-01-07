@@ -3,6 +3,7 @@
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,12 +21,61 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const [loading, setLoading] = useState(true);
+  const [authenticated, setAuthenticated] = useState(false);
+
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/admin/me');
+        if (response.ok) {
+          const data = await response.json();
+          setAuthenticated(data.authenticated);
+        } else {
+          setAuthenticated(false);
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        setAuthenticated(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !authenticated) {
+      router.push('/admin-login');
+    }
+  }, [loading, authenticated, router]);
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated
+  if (!authenticated) {
+    return null;
+  }
 
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/admin/logout', {
         method: 'POST',
       });
+      // Cookie will be cleared by the server
       router.push('/admin-login');
     } catch (error) {
       console.error('Logout error:', error);
@@ -73,7 +123,7 @@ export default function AdminLayout({
                   >
                     Suppliers
                   </Link>
-                  <Link
+                  {/* <Link
                     href="/admin/products"
                     className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
                       pathname.startsWith('/admin/products')
@@ -82,7 +132,7 @@ export default function AdminLayout({
                     }`}
                   >
                     Products
-                  </Link>
+                  </Link> */}
                 </div>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:items-center">

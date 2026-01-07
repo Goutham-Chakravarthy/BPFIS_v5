@@ -3,16 +3,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Filter, X, Check, ChevronDown, CheckCircle, Download, MoreVertical } from 'lucide-react';
+import { adminFetch } from '@/lib/admin-client-auth';
 
 interface Supplier {
   _id: string;
   name: string;
   email: string;
   companyName?: string;
-  contactPerson?: string;
   verificationStatus: 'pending' | 'verified' | 'rejected';
-  phone?: string;
-  address?: string;
   createdAt: string;
 }
 
@@ -122,9 +120,8 @@ export default function SuppliersPage() {
 
   const handleVerify = async (supplierId: string) => {
     try {
-      const response = await fetch(`/api/admin/suppliers/${supplierId}/verify`, {
+      const response = await adminFetch(`/api/admin/suppliers/${supplierId}/verify`, {
         method: 'PUT',
-        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -215,12 +212,10 @@ export default function SuppliersPage() {
     const selectedData = suppliers.filter(supplier => selectedSuppliers.has(supplier._id));
     
     // Create CSV content
-    const headers = ['Company', 'Contact', 'Email', 'Phone', 'Status', 'Joined At'];
+    const headers = ['Company', 'Email', 'Phone', 'Status', 'Joined At'];
     const rows = selectedData.map(supplier => ({
       company: `"${supplier.companyName || 'N/A'}"`,
-      contact: `"${supplier.name}"`,
       email: `"${supplier.email}"`,
-      phone: `"${supplier.phone || ''}"`,
       status: supplier.verificationStatus === 'verified' ? 'Verified' : supplier.verificationStatus === 'rejected' ? 'Rejected' : 'Pending',
       joinedAt: new Date(supplier.createdAt).toLocaleDateString()
     }));
@@ -359,112 +354,9 @@ export default function SuppliersPage() {
             {selectedSuppliers.size > 0 && ` • ${selectedSuppliers.size} selected`}
           </p>
         </div>
-        <div className="mt-4 flex space-x-3 sm:mt-0">
-          <button
-            type="button"
-            onClick={exportToCSV}
-            disabled={suppliers.length === 0}
-            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
-          >
-            <Download className="-ml-1 mr-2 h-4 w-4" />
-            Export All
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowFilters(!showFilters)}
-            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          >
-            <Filter className="-ml-1 mr-2 h-4 w-4" />
-            {showFilters ? 'Hide Filters' : 'Filters'}
-            {hasActiveFilters && (
-              <span className="ml-2 inline-flex items-center justify-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800">
-                {Object.entries(filters).filter(([_, value]) => 
-                  value && (typeof value !== 'string' || (value !== 'all' && value !== 'newest'))
-                ).length}
-              </span>
-            )}
-          </button>
-        </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className={`mt-6 space-y-4 ${showFilters ? 'block' : 'hidden'}`}>
-        <div className="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4">
-          <div className="flex-1">
-            <label htmlFor="search" className="sr-only">Search</label>
-            <div className="relative rounded-md shadow-sm">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                name="search"
-                id="search"
-                className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
-                placeholder="Search by company, name, or email..."
-                value={filters.search || ''}
-                onChange={handleSearch}
-              />
-              {filters.search && (
-                <button
-                  type="button"
-                  onClick={() => handleFilterChange('search', '')}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                >
-                  <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-                </button>
-              )}
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <div>
-              <label htmlFor="status" className="block text-sm font-medium text-gray-700">Status</label>
-              <select
-                id="status"
-                name="status"
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-              >
-                <option value="all">All Status</option>
-                <option value="verified">Verified</option>
-                <option value="pending">Pending</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-            
-            <div>
-              <label htmlFor="sortBy" className="block text-sm font-medium text-gray-700">Sort By</label>
-              <select
-                id="sortBy"
-                name="sortBy"
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                value={filters.sortBy}
-                onChange={(e) => handleFilterChange('sortBy', e.target.value)}
-              >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="name">Name (A-Z)</option>
-                <option value="company">Company (A-Z)</option>
-              </select>
-            </div>
-            
-            {hasActiveFilters && (
-              <div className="flex items-end">
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  Clear All
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-      
+      {/* Suppliers table */}
       <div className="mt-8 flex flex-col">
         <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
@@ -483,16 +375,8 @@ export default function SuppliersPage() {
                     <th scope="col" className="min-w-12 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
                       Company
                     </th>
-                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Contact
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      <div className="flex items-center">
-                        Email
-                      </div>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Email
                     </th>
                     <th
                       scope="col"
@@ -510,6 +394,9 @@ export default function SuppliersPage() {
                           </button>
                         )}
                       </div>
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Joined At
                     </th>
                     <th className="relative py-3.5 pl-3 pr-4 sm:pr-6">
                       <span className="sr-only">Actions</span>
@@ -547,32 +434,12 @@ export default function SuppliersPage() {
                           />
                         </td>
                         <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                          <div className="flex items-center">
-                            <div className="h-10 w-10 flex-shrink-0">
-                              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-                                {supplier.companyName ? supplier.companyName.charAt(0).toUpperCase() : 'S'}
-                              </div>
-                            </div>
-                            <div className="ml-4">
-                              <div className="font-medium text-gray-900">
-                                {supplier.companyName || 'No Company'}
-                                {selectedSuppliers.has(supplier._id) && (
-                                  <span className="ml-2 inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
-                                    Selected
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-gray-500">{supplier.contactPerson || 'No contact'}</div>
-                            </div>
-                          </div>
+                          {supplier.companyName || 'No Company'}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {supplier.name}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <td className="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">
                           {supplier.email}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <td className="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">
                           <span
                             className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
                               supplier.verificationStatus === 'verified'
@@ -584,6 +451,9 @@ export default function SuppliersPage() {
                           >
                             {supplier.verificationStatus === 'verified' ? 'Verified' : supplier.verificationStatus === 'rejected' ? 'Rejected' : 'Pending'}
                           </span>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">
+                          {new Date(supplier.createdAt).toLocaleDateString()}
                         </td>
                         <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                           <div className="flex space-x-2">

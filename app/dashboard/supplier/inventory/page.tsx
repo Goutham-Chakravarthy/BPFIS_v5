@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { withSupplierAuth } from '@/lib/supplier-auth';
 
@@ -33,6 +33,7 @@ interface InventoryLog {
 export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
   const [lowStockProducts, setLowStockProducts] = useState<LowStockProduct[]>([]);
+  const [allProducts, setAllProducts] = useState<LowStockProduct[]>([]);
   const [inventoryLogs, setInventoryLogs] = useState<InventoryLog[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProduct, setSelectedProduct] = useState('');
@@ -42,11 +43,7 @@ export default function InventoryPage() {
   const [success, setSuccess] = useState('');
   const [supplierId, setSupplierId] = useState<string>('');
 
-  useEffect(() => {
-    void loadInventoryData();
-  }, []);
-
-  const loadInventoryData = async () => {
+  const loadInventoryData = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -64,22 +61,50 @@ export default function InventoryPage() {
         }
       }
 
+      // Get low stock products
+      console.log('Fetching low stock products for supplier:', currentSupplierId);
       const lowStockResponse = await fetch(`/api/supplier/${currentSupplierId}/dashboard/low-stock`, withSupplierAuth());
-      const lowStockData = await lowStockResponse.json().catch(() => ({}));
-
+      console.log('Low stock response status:', lowStockResponse.status);
+      
       if (!lowStockResponse.ok) {
-        throw new Error((lowStockData as { error?: string }).error || 'Failed to load low stock products');
+        const errorText = await lowStockResponse.text();
+        console.error('Low stock API error response:', errorText);
+        throw new Error(`Failed to load low stock products: ${lowStockResponse.status}`);
       }
-
+      
+      const lowStockData = await lowStockResponse.json().catch(() => ({}));
       setLowStockProducts((lowStockData as { products?: LowStockProduct[] }).products || []);
 
-      const logsResponse = await fetch(`/api/supplier/${currentSupplierId}/inventory/logs?limit=10`, withSupplierAuth());
-      const logsData = await logsResponse.json().catch(() => ({}));
+      // Get all active products for the dropdown
+      console.log('Fetching products for supplier:', currentSupplierId);
+      const productsResponse = await fetch(`/api/supplier/${currentSupplierId}/products?status=active`, withSupplierAuth());
+      console.log('Products response status:', productsResponse.status);
+      
+      if (!productsResponse.ok) {
+        const errorText = await productsResponse.text();
+        console.error('Products API error response:', errorText);
+        throw new Error(`Failed to load products: ${productsResponse.status}`);
+      }
+      
+      const productsData = await productsResponse.json().catch(() => ({}));
+      console.log('Products data:', productsData);
 
-      if (!logsResponse.ok) {
-        throw new Error((logsData as { error?: string }).error || 'Failed to load inventory logs');
+      if (productsResponse.ok) {
+        setAllProducts((productsData as { products?: LowStockProduct[] }).products || []);
       }
 
+      // Get inventory logs
+      console.log('Fetching inventory logs for supplier:', currentSupplierId);
+      const logsResponse = await fetch(`/api/supplier/${currentSupplierId}/inventory/logs?limit=10`, withSupplierAuth());
+      console.log('Logs response status:', logsResponse.status);
+      
+      if (!logsResponse.ok) {
+        const errorText = await logsResponse.text();
+        console.error('Logs API error response:', errorText);
+        throw new Error(`Failed to load inventory logs: ${logsResponse.status}`);
+      }
+      
+      const logsData = await logsResponse.json().catch(() => ({}));
       setInventoryLogs((logsData as { logs?: InventoryLog[] }).logs || []);
     } catch (error) {
       console.error('Error loading inventory data:', error);
@@ -87,7 +112,11 @@ export default function InventoryPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supplierId]);
+
+  useEffect(() => {
+    void loadInventoryData();
+  }, [loadInventoryData]);
 
   const filteredLowStockProducts = useMemo(() => {
     if (!searchTerm.trim()) {
@@ -101,6 +130,19 @@ export default function InventoryPage() {
       product.category.toLowerCase().includes(term)
     );
   }, [lowStockProducts, searchTerm]);
+
+  const filteredAllProducts = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return allProducts;
+    }
+
+    const term = searchTerm.trim().toLowerCase();
+    return allProducts.filter((product) =>
+      product.name.toLowerCase().includes(term) ||
+      product.sku.toLowerCase().includes(term) ||
+      product.category.toLowerCase().includes(term)
+    );
+  }, [allProducts, searchTerm]);
 
   const handleQuickUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,6 +163,11 @@ export default function InventoryPage() {
 
     try {
       const currentSupplierId = supplierId || 'temp';
+      console.log('Updating inventory for supplier:', currentSupplierId);
+      console.log('Product ID:', selectedProduct);
+      console.log('New quantity:', parsedQuantity);
+      console.log('Reason:', updateReason);
+      
       const response = await fetch(`/api/supplier/${currentSupplierId}/inventory/quick-update`, withSupplierAuth({
         method: 'POST',
         headers: {
@@ -133,17 +180,23 @@ export default function InventoryPage() {
         })
       }));
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccess('Inventory updated successfully!');
-        setSelectedProduct('');
-        setUpdateQuantity('');
-        setUpdateReason('manual');
-        await loadInventoryData(); // Reload data
-      } else {
-        setError(data.error || 'Failed to update inventory');
+      console.log('Update response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Update API error response:', errorText);
+        setError(`Failed to update inventory: ${response.status}`);
+        return;
       }
+
+      const data = await response.json();
+      console.log('Update response data:', data);
+
+      setSuccess('Inventory updated successfully!');
+      setSelectedProduct('');
+      setUpdateQuantity('');
+      setUpdateReason('manual');
+      await loadInventoryData(); // Reload data
     } catch (error) {
       console.error('Error updating inventory:', error);
       setError('Failed to update inventory');
@@ -277,15 +330,15 @@ export default function InventoryPage() {
                   required
                 >
                   <option value="">Choose a product...</option>
-                  {filteredLowStockProducts.map((product) => (
+                  {filteredAllProducts.map((product) => (
                     <option key={product._id} value={product._id}>
                       {product.name} ({product.sku}) - Current: {product.stockQuantity}
                     </option>
                   ))}
                 </select>
-                {searchTerm && filteredLowStockProducts.length === 0 && (
+                {searchTerm && filteredAllProducts.length === 0 && (
                   <p className="mt-2 text-xs text-[#6b7280]">
-                    No low stock products match "{searchTerm}".
+                    No active products match &quot;{searchTerm}&quot;.
                   </p>
                 )}
               </div>

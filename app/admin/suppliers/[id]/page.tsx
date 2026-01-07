@@ -4,6 +4,7 @@ import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { adminFetch } from '@/lib/admin-client-auth';
 
 interface Supplier {
   _id: string;
@@ -290,9 +291,7 @@ function SupplierDetailPage({ params }: Props) {
         const resolvedParams = await params;
         
         // Fetch supplier details
-        const supplierResponse = await fetch(`/api/admin/suppliers/${resolvedParams.id}`, {
-          credentials: 'include'
-        });
+        const supplierResponse = await adminFetch(`/api/admin/suppliers/${resolvedParams.id}`);
         if (!supplierResponse.ok) {
           throw new Error('Failed to fetch supplier details');
         }
@@ -300,21 +299,14 @@ function SupplierDetailPage({ params }: Props) {
         setSupplier(supplierData.data || supplierData);
 
         // Fetch documents
-        const documentsResponse = await fetch(`/api/admin/suppliers/${resolvedParams.id}/documents`, {
-          credentials: 'include'
-        });
+        const documentsResponse = await adminFetch(`/api/admin/suppliers/${resolvedParams.id}/documents`);
         if (documentsResponse.ok) {
           const documentsData = await documentsResponse.json();
           setDocuments(documentsData);
         }
 
         // Fetch products
-        const productsResponse = await fetch(`/api/admin/suppliers/${resolvedParams.id}/products`, {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
+        const productsResponse = await adminFetch(`/api/admin/suppliers/${resolvedParams.id}/products`);
         if (productsResponse.ok) {
           const productsData = await productsResponse.json();
           setProducts(productsData.data || productsData);
@@ -427,12 +419,6 @@ function SupplierDetailPage({ params }: Props) {
               <dt className="text-sm font-medium text-gray-500">Email address</dt>
               <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                 {supplier.email}
-              </dd>
-            </div>
-            <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-              <dt className="text-sm font-medium text-gray-500">Phone</dt>
-              <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                {supplier.phone || 'Not provided'}
               </dd>
             </div>
             <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">

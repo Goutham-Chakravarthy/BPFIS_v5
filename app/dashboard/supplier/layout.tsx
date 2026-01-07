@@ -21,10 +21,10 @@ const navigation = [
   { name: 'Products', href: '/dashboard/supplier/products', current: false },
   { name: 'Inventory', href: '/dashboard/supplier/inventory', current: false },
   { name: 'Orders', href: '/dashboard/supplier/orders', current: false },
-  { name: 'Analytics', href: '/dashboard/supplier/analytics', current: false },
-  { name: 'Reviews', href: '/dashboard/supplier/reviews', current: false },
+  // { name: 'Analytics', href: '/dashboard/supplier/analytics', current: false },
+  //{ name: 'Reviews', href: '/dashboard/supplier/reviews', current: false },
   { name: 'Profile', href: '/dashboard/supplier/profile', current: false },
-  { name: 'Settings', href: '/dashboard/supplier/settings', current: false },
+  // { name: 'Settings', href: '/dashboard/supplier/settings', current: false },
 ];
 
 export default function SupplierLayout({
