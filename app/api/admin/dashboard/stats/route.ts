@@ -4,6 +4,33 @@ import { connectDB } from '@/lib/db';
 import { User } from '@/lib/models/User';
 import { Product, Order } from '@/lib/models/supplier';
 
+interface UserDocument {
+  _id: any;
+  fullName?: string;
+  companyName?: string;
+  email: string;
+  createdAt: Date;
+}
+
+interface ActivityItem {
+  id: any;
+  type: string;
+  title: string;
+  description: string;
+  timestamp: Date;
+  user: string;
+  status: string;
+  amount?: number;
+}
+
+interface OrderDocument {
+  _id: any;
+  customerName?: string;
+  status?: string;
+  totalAmount?: number;
+  createdAt: Date;
+}
+
 export async function GET() {
   try {
     // Verify admin authentication
@@ -39,8 +66,8 @@ export async function GET() {
     ]);
 
     // Create recent activities from farmers, suppliers, and orders
-    const recentActivities = [
-      ...recentFarmers.map(farmer => ({
+    const recentActivities: ActivityItem[] = [
+      ...recentFarmers.map((farmer: UserDocument) => ({
         id: farmer._id,
         type: 'farmer_registration',
         title: 'New Farmer Registered',
@@ -49,7 +76,7 @@ export async function GET() {
         user: farmer.fullName || farmer.email,
         status: 'completed'
       })),
-      ...recentSuppliers.map(supplier => ({
+      ...recentSuppliers.map((supplier: UserDocument) => ({
         id: supplier._id,
         type: 'supplier_registration',
         title: 'New Supplier Registered',
@@ -58,7 +85,7 @@ export async function GET() {
         user: supplier.companyName || supplier.email,
         status: 'completed'
       })),
-      ...recentOrders.map(order => ({
+      ...recentOrders.map((order: OrderDocument) => ({
         id: order._id,
         type: 'supplier_order',
         title: `Order #${order._id.toString().substring(0, 8)}`,
@@ -68,7 +95,7 @@ export async function GET() {
         status: order.status || 'pending',
         amount: order.totalAmount || 0
       }))
-    ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 10);
+    ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10);
 
     // Return response with basic data
     const stats = {
@@ -80,7 +107,7 @@ export async function GET() {
       totalRevenue: 0,
       recentActivities,
       topProducts: [],
-      recentOrders: recentOrders.map(order => ({
+      recentOrders: recentOrders.map((order: OrderDocument) => ({
         id: order._id,
         customer: order.customerName || 'Customer',
         amount: order.totalAmount || 0,

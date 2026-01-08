@@ -242,15 +242,59 @@ export default function MarketplacePage() {
 
   // Handle adding to cart
   const handleAddToCart = async (productId: string) => {
+    if (!userId) {
+      setToast({ message: 'Please log in to add items to cart', type: 'error' });
+      setTimeout(() => setToast(null), 2500);
+      return;
+    }
+
     try {
-      // In a real app, you would call your add to cart API here
-      console.log('Adding to cart:', productId);
-      // For now, show a non-intrusive toast
-      setToast({ message: 'Added to cart', type: 'success' });
+      // Find the product from our products array
+      const product = products.find(p => p._id === productId) || 
+                    featuredProducts.find(p => p._id === productId) || 
+                    bestsellers.find(p => p._id === productId);
+      
+      if (!product) {
+        setToast({ message: 'Product not found', type: 'error' });
+        setTimeout(() => setToast(null), 2500);
+        return;
+      }
+
+      console.log('Adding to cart:', { productId, userId, product });
+
+      const response = await fetch('/api/farmer/cart', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          productId: product._id,
+          name: product.name,
+          price: product.price,
+          quantity: 1,
+          image: product.images?.[0]?.url || '/placeholder-product.jpg',
+          sellerId: product.seller?._id || 'unknown',
+          sellerName: product.seller?.companyName || 'Unknown Seller'
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add to cart');
+      }
+
+      const data = await response.json();
+      console.log('Cart response:', data);
+      
+      setToast({ message: 'Added to cart successfully', type: 'success' });
       setTimeout(() => setToast(null), 2000);
     } catch (err) {
       console.error('Error adding to cart:', err);
-      setToast({ message: 'Failed to add product to cart', type: 'error' });
+      setToast({ 
+        message: err instanceof Error ? err.message : 'Failed to add product to cart', 
+        type: 'error' 
+      });
       setTimeout(() => setToast(null), 2500);
     }
   };

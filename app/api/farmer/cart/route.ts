@@ -63,7 +63,6 @@ export async function POST(req: Request) {
       // Create new cart
       const newCart = {
         userId,
-        user: new mongoose.Types.ObjectId(userId),
         items: [{
           productId,
           name,
