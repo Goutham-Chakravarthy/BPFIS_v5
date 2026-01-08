@@ -70,13 +70,18 @@ export async function POST(request: Request) {
       role: user.role
     });
 
-    void sendEmailOtp(user.email, emailOtp, 'supplier registration');
+    // Send OTP via email
+    const emailSent = await sendEmailOtp(user.email, emailOtp, 'supplier registration');
 
     console.log('📧 OTP sent to email:', user.email);
+    console.log('📧 Email send status:', emailSent ? '✅ Success' : '❌ Failed');
 
     return NextResponse.json({
-      message: 'Supplier registered. Verify OTP to activate account.',
+      message: emailSent 
+        ? 'Supplier registered successfully. OTP has been sent to your email.'
+        : 'Supplier registered successfully. OTP generated but email delivery failed. Please check console for OTP.',
       userId: user._id,
+      emailSent,
       otp: emailOtp, // Include OTP for development testing
       email: businessEmail,
       companyName: companyName

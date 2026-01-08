@@ -49,12 +49,19 @@ export async function POST(request: Request) {
       otpExpiresAt
     });
 
+    // Send OTP via email
+    const emailSent = await sendEmailOtp(email, otp, 'farmer registration');
+    
     // Log OTP to console for testing
-    console.log('OTP for', email, ':', otp);
+    console.log('🔢 Generated OTP for', email, ':', otp);
+    console.log('📧 Email send status:', emailSent ? '✅ Success' : '❌ Failed');
 
     return NextResponse.json({
-      message: 'Farmer registered successfully. OTP has been sent to your email and phone.',
+      message: emailSent 
+        ? 'Farmer registered successfully. OTP has been sent to your email.'
+        : 'Farmer registered successfully. OTP generated but email delivery failed. Please check console for OTP.',
       userId: user._id,
+      emailSent,
       // Include OTP in response for testing (remove in production)
       otp: process.env.NODE_ENV === 'development' ? otp : undefined
     });

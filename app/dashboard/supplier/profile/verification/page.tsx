@@ -82,6 +82,38 @@ export default function VerificationPage() {
 
   useEffect(() => {
     loadProfile();
+    
+    // Set up periodic verification status check (every 30 seconds)
+    const intervalId = setInterval(async () => {
+      if (profile?._id) {
+        try {
+          const response = await fetch('/api/supplier/verification-status', {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('supplierToken')}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setVerificationStatus(data.verificationStatus);
+            
+            // Show notification if status changed to verified
+            if (data.verificationStatus.verificationStatus === 'verified' && 
+                verificationStatus?.verificationStatus !== 'verified') {
+              setSuccess('Congratulations! Your account has been verified.');
+              setTimeout(() => setSuccess(''), 5000);
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to check verification status:', error);
+        }
+      }
+    }, 30000); // Check every 30 seconds
+
+    return () => {
+      clearInterval(intervalId);
+    };
   }, []);
 
   const loadProfile = async () => {
@@ -263,23 +295,53 @@ export default function VerificationPage() {
                 </p>
               )}
             </div>
-            <div className={`px-4 py-2 rounded-full text-sm font-medium ${
-              !verificationStatus.documentsUploaded
-                ? 'bg-red-100 text-red-800'
-                : verificationStatus.verificationStatus === 'verified' 
-                ? 'bg-green-100 text-green-800'
-                : verificationStatus.verificationStatus === 'pending'
-                ? 'bg-yellow-100 text-yellow-800'
-                : 'bg-red-100 text-red-800'
-            }`}>
-              {!verificationStatus.documentsUploaded
-                ? 'Not Verified'
-                : verificationStatus.verificationStatus === 'verified' 
-                ? 'Verified'
-                : verificationStatus.verificationStatus === 'pending'
-                ? 'Under Review'
-                : 'Rejected'
-              }
+            <div className="flex items-center space-x-3">
+              <div className={`px-4 py-2 rounded-full text-sm font-medium ${
+                !verificationStatus.documentsUploaded
+                  ? 'bg-red-100 text-red-800'
+                  : verificationStatus.verificationStatus === 'verified' 
+                  ? 'bg-green-100 text-green-800'
+                  : verificationStatus.verificationStatus === 'pending'
+                  ? 'bg-yellow-100 text-yellow-800'
+                  : 'bg-red-100 text-red-800'
+              }`}>
+                {!verificationStatus.documentsUploaded
+                  ? 'Not Verified'
+                  : verificationStatus.verificationStatus === 'verified' 
+                  ? 'Verified'
+                  : verificationStatus.verificationStatus === 'pending'
+                  ? 'Under Review'
+                  : 'Rejected'
+                }
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const response = await fetch('/api/supplier/verification-status', {
+                      headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('supplierToken')}`,
+                        'Content-Type': 'application/json'
+                      }
+                    });
+                    
+                    if (response.ok) {
+                      const data = await response.json();
+                      setVerificationStatus(data.verificationStatus);
+                      setSuccess('Verification status refreshed!');
+                      setTimeout(() => setSuccess(''), 3000);
+                    } else {
+                      setSuccess('Failed to refresh verification status');
+                      setTimeout(() => setSuccess(''), 3000);
+                    }
+                  } catch (error) {
+                    setSuccess('Failed to refresh verification status');
+                    setTimeout(() => setSuccess(''), 3000);
+                  }
+                }}
+                className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+              >
+                Refresh Status
+              </button>
             </div>
           </div>
         </div>

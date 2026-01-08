@@ -137,17 +137,17 @@ export default function ProfilePage() {
 
       // Fetch verification status from new API
       try {
-        const verificationResponse = await fetch('/api/supplier/documents', withSupplierAuth());
+        const verificationResponse = await fetch('/api/supplier/verification-status', withSupplierAuth());
         if (verificationResponse.ok) {
           const verificationData = await verificationResponse.json();
           setVerificationStatus(verificationData.verificationStatus);
         }
       } catch (verifError) {
         console.warn('Failed to fetch verification status:', verifError);
-        // Fallback to profile data for legacy suppliers
+        // Fallback to profile data
         if (sellerData) {
           setVerificationStatus({
-            documentsUploaded: true, // Legacy suppliers assumed to have documents
+            documentsUploaded: sellerData.documentsUploaded || false,
             verificationStatus: sellerData.verificationStatus || 'pending'
           });
         }

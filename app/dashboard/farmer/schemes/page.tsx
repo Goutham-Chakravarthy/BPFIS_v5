@@ -64,9 +64,8 @@ export default function GovernmentSchemesPage() {
     const cleanedKey = String(field.key || '').trim();
     return (
       /\bscheme\s*name\b/i.test(cleanedLabel) ||
-      /\bscheme\s*link\b/i.test(cleanedLabel) ||
-      /\bstate\b/i.test(cleanedLabel) ||
-      /(^|_)state(_|$)/i.test(cleanedKey)
+      /\bscheme\s*link\b/i.test(cleanedLabel)
+      // Removed state field hiding - we want to show Karnataka
     );
   };
 
@@ -385,8 +384,28 @@ export default function GovernmentSchemesPage() {
               const isSelectField = /caste|gender|state|district|type|disaster/i.test(displayLabel) && !/income.*category|category.*income/i.test(displayLabel);
               const isStateField = /\bstate\b/i.test(displayLabel) || /(^|_)state(_|$)/i.test(String(f.key || ''));
 
+              // Always show state field but only with Karnataka option
               if (isStateField) {
-                return null;
+                return (
+                  <div key={f.key} className="space-y-2">
+                    <label 
+                      htmlFor={`field-${f.key}`}
+                      className="block text-sm font-medium text-[#1f3b2c]"
+                    >
+                      {displayLabel}
+                    </label>
+                    <select
+                      id={`field-${f.key}`}
+                      value="Karnataka"
+                      onChange={(e) => handleChange(f.key, e.target.value)}
+                      className="w-full px-3 py-2 border border-[#e2d4b7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1f3b2c] focus:border-transparent bg-gray-50 text-gray-700"
+                      disabled
+                    >
+                      <option value="Karnataka">Karnataka</option>
+                    </select>
+                    <p className="text-xs text-gray-500">Only Karnataka is currently supported</p>
+                  </div>
+                );
               }
               
               return (
